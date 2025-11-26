@@ -37,8 +37,9 @@ You must create a Home Assistant automation that responds to a webhook and sets 
 1. Create a webhook-based automation
 2. Use the webhook ID: `homeassistant_windows_volume_sync`
 3. Configure the automation to:
-   - Read the JSON body `{ "volume": <number>, "mute": <boolean> }`
+   - Read the JSON body `{ "volume": <number>, "mute": <boolean>, "target_media_player": <string> }`
    - Convert volume to 0.0–1.0 (the number is 0–100)
+   - Use the `target_media_player` from the payload (or default to your media player)
    - Call `media_player.volume_set`
 
 After creating the automation, your webhook URL becomes:
@@ -83,15 +84,18 @@ HomeAssistantWindowsVolumeSync/
 
 ## Configuration
 
-Edit `appsettings.json` to configure the Home Assistant webhook URL:
+Edit `appsettings.json` to configure the Home Assistant webhook URL and target media player:
 
 ```json
 {
   "HomeAssistant": {
-    "WebhookUrl": "https://your-home-assistant-url/api/webhook/homeassistant_windows_volume_sync"
+    "WebhookUrl": "https://your-home-assistant-url/api/webhook/homeassistant_windows_volume_sync",
+    "TargetMediaPlayer": "media_player.your_sonos_speaker"
   }
 }
 ```
+
+**Note:** The `TargetMediaPlayer` setting makes it easy to configure which media player to control. Simply copy and paste your media player entity ID here.
 
 ## Building the Service
 

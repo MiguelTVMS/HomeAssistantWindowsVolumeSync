@@ -95,13 +95,13 @@ The service uses `appsettings.json` for configuration:
 
 ```bash
 # Build
-dotnet build src/HomeAssistantWindowsVolumeSync/HomeAssistantWindowsVolumeSync.csproj
+dotnet build src/HomeAssistantWindowsVolumeSync.csproj
 
 # Run tests
-dotnet test tests/HomeAssistantWindowsVolumeSync.Tests/HomeAssistantWindowsVolumeSync.Tests.csproj
+dotnet test tests/HomeAssistantWindowsVolumeSync.Tests.csproj
 
 # Publish for production
-dotnet publish src/HomeAssistantWindowsVolumeSync -c Release -r win-x64 --self-contained false -o publish
+dotnet publish src -c Release -r win-x64 --self-contained false -o publish
 ```
 
 ## Key Implementation Details
