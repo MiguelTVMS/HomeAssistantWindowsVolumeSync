@@ -13,6 +13,38 @@
       "stopAtEntry": false
     },
     {
+      "name": ".NET Core Test (All)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "test",
+      "program": "dotnet",
+      "args": [
+        "test",
+        "${workspaceFolder}/tests/HomeAssistantWindowsVolumeSync.Tests/HomeAssistantWindowsVolumeSync.Tests.csproj",
+        "--logger:console;verbosity=detailed"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "stopAtEntry": false
+    },
+    {
+      "name": ".NET Core Test (Current File)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "test",
+      "program": "dotnet",
+      "args": [
+        "test",
+        "${workspaceFolder}/tests/HomeAssistantWindowsVolumeSync.Tests/HomeAssistantWindowsVolumeSync.Tests.csproj",
+        "--filter",
+        "FullyQualifiedName~${fileBasenameNoExtension}",
+        "--logger:console;verbosity=detailed"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "stopAtEntry": false
+    },
+    {
       "name": ".NET Core Attach",
       "type": "coreclr",
       "request": "attach"
