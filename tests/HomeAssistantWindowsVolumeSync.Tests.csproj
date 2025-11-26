@@ -23,6 +23,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\HomeAssistantWindowsVolumeSync\HomeAssistantWindowsVolumeSync.csproj" />
+    <ProjectReference Include="..\src\HomeAssistantWindowsVolumeSync.csproj" />
   </ItemGroup>
 </Project>

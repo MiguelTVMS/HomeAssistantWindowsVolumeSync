@@ -12,6 +12,7 @@ public class HomeAssistantClient : IHomeAssistantClient
     private readonly HttpClient _httpClient;
     private readonly ILogger<HomeAssistantClient> _logger;
     private readonly string? _webhookUrl;
+    private readonly string? _targetMediaPlayer;
 
     public HomeAssistantClient(
         HttpClient httpClient,
@@ -21,10 +22,16 @@ public class HomeAssistantClient : IHomeAssistantClient
         _httpClient = httpClient;
         _logger = logger;
         _webhookUrl = configuration["HomeAssistant:WebhookUrl"];
+        _targetMediaPlayer = configuration["HomeAssistant:TargetMediaPlayer"];
 
         if (string.IsNullOrEmpty(_webhookUrl))
         {
             _logger.LogWarning("HomeAssistant webhook URL is not configured. Please set 'HomeAssistant:WebhookUrl' in appsettings.json");
+        }
+
+        if (string.IsNullOrEmpty(_targetMediaPlayer))
+        {
+            _logger.LogWarning("Target media player is not configured. Please set 'HomeAssistant:TargetMediaPlayer' in appsettings.json");
         }
     }
 
@@ -42,11 +49,12 @@ public class HomeAssistantClient : IHomeAssistantClient
             var payload = new VolumePayload
             {
                 Volume = volumePercent,
-                Mute = isMuted
+                Mute = isMuted,
+                TargetMediaPlayer = _targetMediaPlayer
             };
 
             var response = await _httpClient.PostAsJsonAsync(_webhookUrl, payload);
-            
+
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("Home Assistant webhook returned status code {StatusCode}", response.StatusCode);
@@ -69,5 +77,6 @@ public class HomeAssistantClient : IHomeAssistantClient
     {
         public int Volume { get; set; }
         public bool Mute { get; set; }
+        public string? TargetMediaPlayer { get; set; }
     }
 }

@@ -17,37 +17,42 @@ trigger:
 
 # Actions: Set the volume and mute state on the media player
 action:
+  - variables:
+      target_media_player: "{{ trigger.json.targetMediaPlayer | default('media_player.your_sonos_speaker') }}"
+      volume: "{{ trigger.json.volume }}"
+      mute: "{{ trigger.json.mute }}"
+      volume_level: "{{ trigger.json.volume / 100 }}"
   - choose:
       # If mute is true, mute the media player
       - conditions:
           - condition: template
-            value_template: "{{ trigger.json.mute == true }}"
+            value_template: "{{ mute == true }}"
         sequence:
           - service: media_player.volume_mute
             target:
-              entity_id: media_player.your_sonos_speaker
+              entity_id: "{{ target_media_player }}"
             data:
               is_volume_muted: true
       # If mute is false, unmute and set volume
       - conditions:
           - condition: template
-            value_template: "{{ trigger.json.mute == false }}"
+            value_template: "{{ mute == false }}"
         sequence:
           - service: media_player.volume_mute
             target:
-              entity_id: media_player.your_sonos_speaker
+              entity_id: "{{ target_media_player }}"
             data:
               is_volume_muted: false
           - service: media_player.volume_set
             target:
-              entity_id: media_player.your_sonos_speaker
+              entity_id: "{{ target_media_player }}"
             data:
               # Convert 0-100 to 0.0-1.0
-              volume_level: "{{ trigger.json.volume / 100 }}"
+              volume_level: "{{ volume_level }}"
     # Default: Just set the volume (0-100 to 0.0-1.0)
     default:
       - service: media_player.volume_set
         target:
-          entity_id: media_player.your_sonos_speaker
+          entity_id: "{{ target_media_player }}"
         data:
-          volume_level: "{{ trigger.json.volume / 100 }}"
+          volume_level: "{{ volume_level }}"

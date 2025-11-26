@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Extract version from tag
+        id: get_version
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}" -replace '^v', ''
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          echo "Version: $version"
+
+      - name: Restore dependencies
+        run: dotnet restore HomeAssistantWindowsVolumeSync.sln
+
+      - name: Build and Test
+        run: |
+          dotnet build HomeAssistantWindowsVolumeSync.sln --configuration Release --no-restore
+          dotnet test HomeAssistantWindowsVolumeSync.sln --configuration Release --no-build --verbosity normal
+
+      - name: Publish self-contained
+        run: dotnet publish src/HomeAssistantWindowsVolumeSync.csproj -c Release -r win-x64 --self-contained true -o publish/self-contained /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true
+
+      - name: Publish framework-dependent
+        run: dotnet publish src/HomeAssistantWindowsVolumeSync.csproj -c Release -r win-x64 --self-contained false -o publish/framework-dependent
+
+      - name: Create artifacts
+        shell: pwsh
+        run: |
+          # Create self-contained zip
+          Compress-Archive -Path publish/self-contained/* -DestinationPath HomeAssistantWindowsVolumeSync-${{ steps.get_version.outputs.VERSION }}-win-x64-self-contained.zip
+
+          # Create framework-dependent zip
+          Compress-Archive -Path publish/framework-dependent/* -DestinationPath HomeAssistantWindowsVolumeSync-${{ steps.get_version.outputs.VERSION }}-win-x64.zip
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            HomeAssistantWindowsVolumeSync-${{ steps.get_version.outputs.VERSION }}-win-x64-self-contained.zip
+            HomeAssistantWindowsVolumeSync-${{ steps.get_version.outputs.VERSION }}-win-x64.zip
+          body: |
+            ## Installation
+
+            Download the appropriate package for your system:
+
+            - **self-contained**: Includes .NET runtime, no prerequisites needed (~70MB)
+            - **win-x64**: Requires .NET 8 Runtime installed (~10MB)
+
+            Extract the files and follow the [installation instructions](https://github.com/${{ github.repository }}#installation) in the README.
+
+            ## What's Changed
+
+            See the full changelog below.
