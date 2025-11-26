@@ -1,0 +1,19 @@
+{
+  "dotnet-test-explorer.testProjectPath": "tests/**/*.csproj",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  },
+  "omnisharp.enableRoslynAnalyzers": true,
+  "omnisharp.enableEditorConfigSupport": true,
+  "[csharp]": {
+    "editor.defaultFormatter": "ms-dotnettools.csharp"
+  },
+  "[yaml]": {
+    "editor.defaultFormatter": "redhat.vscode-yaml"
+  },
+  "files.exclude": {
+    "**/bin": true,
+    "**/obj": true
+  }
+}

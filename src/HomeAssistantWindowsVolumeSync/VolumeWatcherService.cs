@@ -1,0 +1,111 @@
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
+using NAudio.CoreAudioApi;
+
+namespace HomeAssistantWindowsVolumeSync;
+
+/// <summary>
+/// Background service that monitors Windows system volume changes
+/// and sends updates to Home Assistant via webhook.
+/// </summary>
+public class VolumeWatcherService : BackgroundService
+{
+    private readonly ILogger<VolumeWatcherService> _logger;
+    private readonly IHomeAssistantClient _homeAssistantClient;
+    private readonly IConfiguration _configuration;
+    private MMDeviceEnumerator? _deviceEnumerator;
+    private MMDevice? _defaultDevice;
+    private AudioEndpointVolumeNotificationDelegate? _volumeDelegate;
+
+    public VolumeWatcherService(
+        ILogger<VolumeWatcherService> logger,
+        IHomeAssistantClient homeAssistantClient,
+        IConfiguration configuration)
+    {
+        _logger = logger;
+        _homeAssistantClient = homeAssistantClient;
+        _configuration = configuration;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        _logger.LogInformation("VolumeWatcherService is starting...");
+
+        try
+        {
+            // Initialize the device enumerator and get the default audio endpoint
+            _deviceEnumerator = new MMDeviceEnumerator();
+            _defaultDevice = _deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+
+            if (_defaultDevice?.AudioEndpointVolume != null)
+            {
+                // Create a delegate that handles volume change events
+                _volumeDelegate = new AudioEndpointVolumeNotificationDelegate(OnVolumeNotification);
+                _defaultDevice.AudioEndpointVolume.OnVolumeNotification += _volumeDelegate;
+
+                _logger.LogInformation("Volume watcher initialized successfully. Listening for volume changes...");
+
+                // Send initial volume state
+                await SendVolumeUpdateAsync(
+                    _defaultDevice.AudioEndpointVolume.MasterVolumeLevelScalar,
+                    _defaultDevice.AudioEndpointVolume.Mute);
+            }
+            else
+            {
+                _logger.LogWarning("Could not access the default audio endpoint.");
+            }
+
+            // Keep the service running until cancellation is requested
+            await Task.Delay(Timeout.Infinite, stoppingToken);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("VolumeWatcherService is stopping...");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in VolumeWatcherService");
+            throw;
+        }
+    }
+
+    private void OnVolumeNotification(AudioVolumeNotificationData data)
+    {
+        _logger.LogDebug("Volume change detected: {Volume}%, Muted: {Muted}", 
+            data.MasterVolume * 100, data.Muted);
+
+        // Fire and forget - we don't want to block the audio callback
+        _ = SendVolumeUpdateAsync(data.MasterVolume, data.Muted);
+    }
+
+    private async Task SendVolumeUpdateAsync(float volumeScalar, bool isMuted)
+    {
+        try
+        {
+            // Convert to 0-100 scale as expected by the webhook
+            var volumePercent = (int)Math.Round(volumeScalar * 100);
+
+            await _homeAssistantClient.SendVolumeUpdateAsync(volumePercent, isMuted);
+            
+            _logger.LogDebug("Volume update sent: {Volume}%, Muted: {Muted}", volumePercent, isMuted);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send volume update to Home Assistant");
+        }
+    }
+
+    public override void Dispose()
+    {
+        if (_defaultDevice?.AudioEndpointVolume != null && _volumeDelegate != null)
+        {
+            _defaultDevice.AudioEndpointVolume.OnVolumeNotification -= _volumeDelegate;
+        }
+
+        _defaultDevice?.Dispose();
+        _deviceEnumerator?.Dispose();
+
+        base.Dispose();
+    }
+}
