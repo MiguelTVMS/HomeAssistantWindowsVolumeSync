@@ -6,7 +6,7 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build",
-      "program": "${workspaceFolder}/src/HomeAssistantWindowsVolumeSync/bin/Debug/net8.0-windows/win-x64/HomeAssistantWindowsVolumeSync.exe",
+      "program": "${workspaceFolder}/src/HomeAssistantWindowsVolumeSync/bin/Debug/net8.0/HomeAssistantWindowsVolumeSync.exe",
       "args": [],
       "cwd": "${workspaceFolder}/src/HomeAssistantWindowsVolumeSync",
       "console": "internalConsole",
