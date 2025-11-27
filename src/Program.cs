@@ -1,23 +1,95 @@
 using HomeAssistantWindowsVolumeSync;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using System.Runtime.InteropServices;
 
-var builder = Host.CreateApplicationBuilder(args);
-
-// Configure Windows Service hosting
-builder.Services.AddWindowsService(options =>
+// For debugging: allocate a console window if running as WinExe
+#if DEBUG
+if (Environment.UserInteractive)
 {
-    options.ServiceName = "HomeAssistant Windows Volume Sync";
-});
+    NativeMethods.AllocConsole();
+}
+#endif
 
-// Register the HttpClient for Home Assistant webhook calls
-builder.Services.AddHttpClient<IHomeAssistantClient, HomeAssistantClient>(client =>
+try
 {
-    client.Timeout = TimeSpan.FromSeconds(10);
-});
+    var builder = Host.CreateApplicationBuilder(args);
 
-// Register the volume watcher service
-builder.Services.AddHostedService<VolumeWatcherService>();
+    // Configure logging from appsettings.json
+    builder.Logging.ClearProviders();
 
-var host = builder.Build();
-host.Run();
+    // Add console logging (useful for debugging and when running interactively)
+    builder.Logging.AddConsole();
+
+    // Add debug logging (outputs to debugger window)
+    builder.Logging.AddDebug();
+
+    // Add Windows Event Log when running as a service
+    builder.Logging.AddEventLog(settings =>
+    {
+        settings.SourceName = "HomeAssistant Windows Volume Sync";
+        settings.LogName = "Application";
+    });
+
+    // Add file logging for persistent logs
+    var logPath = Path.Combine(AppContext.BaseDirectory, "logs");
+    if (!Directory.Exists(logPath))
+    {
+        Directory.CreateDirectory(logPath);
+    }
+
+    // Configure Windows Service hosting
+    builder.Services.AddWindowsService(options =>
+    {
+        options.ServiceName = "HomeAssistant Windows Volume Sync";
+    });
+
+    // Register the HttpClient for Home Assistant webhook calls
+    builder.Services.AddHttpClient<IHomeAssistantClient, HomeAssistantClient>(client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(10);
+    });
+
+    // Register the volume watcher service
+    builder.Services.AddSingleton<VolumeWatcherService>();
+    builder.Services.AddHostedService(provider => provider.GetRequiredService<VolumeWatcherService>());
+
+    // Register the system tray service
+    builder.Services.AddHostedService<SystemTrayService>();
+
+    var host = builder.Build();
+
+    var logger = host.Services.GetRequiredService<ILogger<Program>>();
+
+    logger.LogInformation("Starting HomeAssistant Windows Volume Sync service");
+    await host.RunAsync();
+    logger.LogInformation("HomeAssistant Windows Volume Sync service stopped");
+}
+catch (Exception ex)
+{
+    // Log to file when logger is not available (startup failures)
+    var logPath = Path.Combine(AppContext.BaseDirectory, "startup-error.log");
+    var errorMessage = $"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC - FATAL ERROR during startup:{Environment.NewLine}{ex}{Environment.NewLine}";
+
+    try
+    {
+        File.AppendAllText(logPath, errorMessage);
+    }
+    catch
+    {
+        // If we can't write to file, at least try console
+        Console.Error.WriteLine(errorMessage);
+    }
+
+    throw;
+}
+
+#if DEBUG
+internal static class NativeMethods
+{
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool AllocConsole();
+}
+#endif
