@@ -46,7 +46,17 @@ public class VolumeWatcherService : BackgroundService
         {
             // Initialize the device enumerator and get the default audio endpoint
             _deviceEnumerator = new MMDeviceEnumerator();
-            _defaultDevice = _deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+
+            try
+            {
+                _defaultDevice = _deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+            }
+            catch (System.Runtime.InteropServices.COMException ex) when (ex.HResult == unchecked((int)0x80070490))
+            {
+                // Element not found - no audio device available
+                _logger.LogWarning("No default audio endpoint found. Service will continue but volume monitoring is disabled.");
+                _defaultDevice = null;
+            }
 
             if (_defaultDevice?.AudioEndpointVolume != null)
             {
@@ -63,7 +73,7 @@ public class VolumeWatcherService : BackgroundService
             }
             else
             {
-                _logger.LogWarning("Could not access the default audio endpoint.");
+                _logger.LogWarning("Could not access the default audio endpoint. Volume monitoring is disabled.");
             }
 
             // Keep the service running until cancellation is requested
