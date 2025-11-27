@@ -4,7 +4,6 @@ on:
   pull_request:
     branches:
       - main
-      - develop
     paths:
       - "src/**"
       - "tests/**"
@@ -24,11 +23,6 @@ jobs:
       checks: write
       pull-requests: write
 
-    strategy:
-      matrix:
-        configuration: [Debug, Release]
-      fail-fast: false
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -42,37 +36,24 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json', '**/*.csproj') }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
           restore-keys: |
             ${{ runner.os }}-nuget-
-
-      - name: Cache build output
-        uses: actions/cache@v4
-        with:
-          path: |
-            src/bin
-            src/obj
-            tests/bin
-            tests/obj
-          key: ${{ runner.os }}-build-${{ matrix.configuration }}-${{ hashFiles('**/*.cs', '**/*.csproj') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ matrix.configuration }}-
-            ${{ runner.os }}-build-
 
       - name: Restore dependencies
         run: dotnet restore HomeAssistantWindowsVolumeSync.sln
 
-      - name: Build (${{ matrix.configuration }})
-        run: dotnet build HomeAssistantWindowsVolumeSync.sln --configuration ${{ matrix.configuration }} --no-restore
+      - name: Build
+        run: dotnet build HomeAssistantWindowsVolumeSync.sln --configuration Release --no-restore
 
-      - name: Run tests (${{ matrix.configuration }})
-        run: dotnet test HomeAssistantWindowsVolumeSync.sln --configuration ${{ matrix.configuration }} --no-build --verbosity normal --logger "trx;LogFileName=test-results-${{ matrix.configuration }}.trx" --results-directory ./TestResults
+      - name: Run tests
+        run: dotnet test HomeAssistantWindowsVolumeSync.sln --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx" --results-directory ./TestResults
 
-      - name: Publish test results (${{ matrix.configuration }})
+      - name: Publish test results
         uses: dorny/test-reporter@v1
         if: always()
         with:
-          name: Test Results (${{ matrix.configuration }})
+          name: Test Results
           path: "TestResults/*.trx"
           reporter: dotnet-trx
           fail-on-error: true

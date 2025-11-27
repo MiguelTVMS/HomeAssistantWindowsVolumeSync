@@ -13,6 +13,7 @@ public class SystemTrayService : BackgroundService
     private readonly ILogger<SystemTrayService> _logger;
     private readonly IHostApplicationLifetime _lifetime;
     private readonly IServiceProvider _serviceProvider;
+    private readonly IAppConfiguration _configuration;
     private VolumeWatcherService? _volumeWatcherService;
     private NotifyIcon? _notifyIcon;
     private ContextMenuStrip? _contextMenu;
@@ -23,11 +24,13 @@ public class SystemTrayService : BackgroundService
     public SystemTrayService(
         ILogger<SystemTrayService> logger,
         IHostApplicationLifetime lifetime,
-        IServiceProvider serviceProvider)
+        IServiceProvider serviceProvider,
+        IAppConfiguration configuration)
     {
         _logger = logger;
         _lifetime = lifetime;
         _serviceProvider = serviceProvider;
+        _configuration = configuration;
 
         _logger.LogInformation("SystemTrayService constructor called");
     }
@@ -118,6 +121,12 @@ public class SystemTrayService : BackgroundService
         // Pause/Resume menu item
         _pauseResumeMenuItem = new ToolStripMenuItem("Pause", null, OnPauseResumeClick);
         _contextMenu.Items.Add(_pauseResumeMenuItem);
+
+        _contextMenu.Items.Add(new ToolStripSeparator());
+
+        // Settings menu item
+        var settingsMenuItem = new ToolStripMenuItem("Settings", null, OnSettingsClick);
+        _contextMenu.Items.Add(settingsMenuItem);
 
         _contextMenu.Items.Add(new ToolStripSeparator());
 
@@ -225,6 +234,35 @@ public class SystemTrayService : BackgroundService
         }
 
         _logger.LogInformation("Volume sync {Status}", _isPaused ? "paused" : "resumed");
+    }
+
+    private void OnSettingsClick(object? sender, EventArgs e)
+    {
+        _logger.LogInformation("Settings requested from system tray");
+
+        try
+        {
+            var settingsManager = new SettingsManager(_configuration);
+            using var settingsForm = new SettingsForm(
+                _configuration,
+                (url, id, player) => settingsManager.SaveSettings(url, id, player));
+
+            var result = settingsForm.ShowDialog();
+
+            if (result == DialogResult.OK)
+            {
+                _logger.LogInformation("Settings updated successfully");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error showing settings dialog");
+            MessageBox.Show(
+                $"Failed to open settings:\n{ex.Message}",
+                "Settings Error",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
     }
 
     private void OnExitClick(object? sender, EventArgs e)

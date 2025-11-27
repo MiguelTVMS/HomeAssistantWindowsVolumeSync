@@ -11,8 +11,10 @@ namespace HomeAssistantWindowsVolumeSync.Tests;
 public class HomeAssistantClientTests
 {
     private readonly Mock<ILogger<HomeAssistantClient>> _loggerMock;
-    private readonly IConfiguration _configuration;
+    private readonly IAppConfiguration _configuration;
     private const string TestWebhookUrl = "https://test-ha.local/api/webhook/test_webhook";
+    private const string TestBaseUrl = "https://test-ha.local";
+    private const string TestWebhookId = "test_webhook";
 
     public HomeAssistantClientTests()
     {
@@ -20,12 +22,20 @@ public class HomeAssistantClientTests
 
         var configData = new Dictionary<string, string?>
         {
-            { "HomeAssistant:WebhookUrl", TestWebhookUrl }
+            { "HomeAssistant:WebhookUrl", TestBaseUrl },
+            { "HomeAssistant:WebhookPath", "/api/webhook/" },
+            { "HomeAssistant:WebhookId", TestWebhookId }
         };
 
-        _configuration = new ConfigurationBuilder()
+        _configuration = CreateAppConfiguration(configData);
+    }
+
+    private static IAppConfiguration CreateAppConfiguration(Dictionary<string, string?> configData)
+    {
+        var config = new ConfigurationBuilder()
             .AddInMemoryCollection(configData)
             .Build();
+        return new AppConfiguration(config);
     }
 
     [Fact]
@@ -99,9 +109,9 @@ public class HomeAssistantClientTests
     public async Task SendVolumeUpdateAsync_WithNoUrl_DoesNotSendRequest()
     {
         // Arrange
-        var emptyConfig = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>())
-            .Build();
+        var emptyConfig = CreateAppConfiguration(new Dictionary<string, string?> { });//new ConfigurationBuilder()
+
+        ; //
 
         var handlerMock = new Mock<HttpMessageHandler>();
         var requestMade = false;
@@ -225,13 +235,11 @@ public class HomeAssistantClientTests
     public async Task SendVolumeUpdateAsync_WithTimeout_LogsWarning()
     {
         // Arrange
-        var configWithPlayer = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                { "HomeAssistant:WebhookUrl", TestWebhookUrl },
-                { "HomeAssistant:TargetMediaPlayer", "media_player.test" }
-            })
-            .Build();
+        var configWithPlayer = CreateAppConfiguration(new Dictionary<string, string?>
+        {
+            { "HomeAssistant:WebhookUrl", TestBaseUrl }, { "HomeAssistant:WebhookPath", "/api/webhook/" }, { "HomeAssistant:WebhookId", TestWebhookId },
+            { "HomeAssistant:TargetMediaPlayer", "media_player.test" }
+        });
 
         var handlerMock = new Mock<HttpMessageHandler>();
 
@@ -263,13 +271,11 @@ public class HomeAssistantClientTests
     public async Task SendVolumeUpdateAsync_WithTargetMediaPlayer_IncludesInPayload()
     {
         // Arrange
-        var configWithPlayer = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                { "HomeAssistant:WebhookUrl", TestWebhookUrl },
-                { "HomeAssistant:TargetMediaPlayer", "media_player.test_speaker" }
-            })
-            .Build();
+        var configWithPlayer = CreateAppConfiguration(new Dictionary<string, string?>
+        {
+            { "HomeAssistant:WebhookUrl", TestBaseUrl }, { "HomeAssistant:WebhookPath", "/api/webhook/" }, { "HomeAssistant:WebhookId", TestWebhookId },
+            { "HomeAssistant:TargetMediaPlayer", "media_player.test_speaker" }
+        });
 
         var handlerMock = new Mock<HttpMessageHandler>();
         string? capturedContent = null;
@@ -302,9 +308,9 @@ public class HomeAssistantClientTests
     public void Constructor_WithMissingWebhookUrl_LogsWarning()
     {
         // Arrange
-        var emptyConfig = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>())
-            .Build();
+        var emptyConfig = CreateAppConfiguration(new Dictionary<string, string?> { });//new ConfigurationBuilder()
+
+        ; //
 
         var httpClient = new HttpClient();
 
@@ -326,12 +332,10 @@ public class HomeAssistantClientTests
     public void Constructor_WithMissingTargetMediaPlayer_LogsWarning()
     {
         // Arrange
-        var configWithoutPlayer = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
+        var configWithoutPlayer = CreateAppConfiguration(new Dictionary<string, string?>
             {
                 { "HomeAssistant:WebhookUrl", TestWebhookUrl }
-            })
-            .Build();
+            });
 
         var httpClient = new HttpClient();
 
@@ -348,4 +352,146 @@ public class HomeAssistantClientTests
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
     }
+
+    [Fact]
+    public void Constructor_WithHttpUrl_LogsWarning()
+    {
+        // Arrange
+        var httpConfig = CreateAppConfiguration(new Dictionary<string, string?>
+            {
+                { "HomeAssistant:WebhookUrl", "http://test-ha.local" }, { "HomeAssistant:WebhookPath", "/api/webhook/" }, { "HomeAssistant:WebhookId", "test_webhook" },
+                { "HomeAssistant:TargetMediaPlayer", "media_player.test" }
+            });
+
+        var httpClient = new HttpClient();
+
+        // Act
+        var client = new HomeAssistantClient(httpClient, _loggerMock.Object, httpConfig);
+
+        // Assert - verify warning was logged about HTTP
+        _loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("HTTP") && o.ToString()!.Contains("unencrypted")),
+                null,
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public void Constructor_WithHttpsAndStrictTlsFalse_LogsWarning()
+    {
+        // Arrange
+        var httpsConfigNoStrictTls = CreateAppConfiguration(new Dictionary<string, string?>
+            {
+                { "HomeAssistant:WebhookUrl", "https://test-ha.local" }, { "HomeAssistant:WebhookPath", "/api/webhook/" }, { "HomeAssistant:WebhookId", "test_webhook" },
+                { "HomeAssistant:TargetMediaPlayer", "media_player.test" },
+                { "HomeAssistant:StrictTLS", "false" }
+            });
+
+        var httpClient = new HttpClient();
+
+        // Act
+        var client = new HomeAssistantClient(httpClient, _loggerMock.Object, httpsConfigNoStrictTls);
+
+        // Assert - verify warning was logged about disabled certificate validation
+        _loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("certificate validation disabled") || o.ToString()!.Contains("StrictTLS=false")),
+                null,
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public void Constructor_WithHttpsAndStrictTlsTrue_NoWarningAboutTls()
+    {
+        // Arrange
+        var httpsConfigStrictTls = CreateAppConfiguration(new Dictionary<string, string?>
+            {
+                { "HomeAssistant:WebhookUrl", "https://test-ha.local" }, { "HomeAssistant:WebhookPath", "/api/webhook/" }, { "HomeAssistant:WebhookId", "test_webhook" },
+                { "HomeAssistant:TargetMediaPlayer", "media_player.test" },
+                { "HomeAssistant:StrictTLS", "true" }
+            });
+
+        var httpClient = new HttpClient();
+
+        // Act
+        var client = new HomeAssistantClient(httpClient, _loggerMock.Object, httpsConfigStrictTls);
+
+        // Assert - verify NO warning was logged about TLS (only checks for TLS-related warnings, not missing config warnings)
+        _loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("certificate") || o.ToString()!.Contains("StrictTLS")),
+                null,
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public void Constructor_WithHttpsAndDefaultStrictTls_NoWarningAboutTls()
+    {
+        // Arrange
+        var httpsConfigDefaultStrictTls = CreateAppConfiguration(new Dictionary<string, string?>
+            {
+                { "HomeAssistant:WebhookUrl", "https://test-ha.local" }, { "HomeAssistant:WebhookPath", "/api/webhook/" }, { "HomeAssistant:WebhookId", "test_webhook" },
+                { "HomeAssistant:TargetMediaPlayer", "media_player.test" }
+                // StrictTLS not specified, should default to true
+            });
+
+        var httpClient = new HttpClient();
+
+        // Act
+        var client = new HomeAssistantClient(httpClient, _loggerMock.Object, httpsConfigDefaultStrictTls);
+
+        // Assert - verify NO warning was logged about TLS
+        _loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("certificate") || o.ToString()!.Contains("StrictTLS")),
+                null,
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task SendVolumeUpdateAsync_WithHttpUrl_SendsSuccessfully()
+    {
+        // Arrange
+        var httpConfig = CreateAppConfiguration(new Dictionary<string, string?>
+        {
+            { "HomeAssistant:WebhookUrl", "http://test-ha.local" }, { "HomeAssistant:WebhookPath", "/api/webhook/" }, { "HomeAssistant:WebhookId", "test_webhook" },
+            { "HomeAssistant:TargetMediaPlayer", "media_player.test" }
+        });
+
+        var handlerMock = new Mock<HttpMessageHandler>();
+        string? capturedUrl = null;
+
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>((request, _) =>
+            {
+                capturedUrl = request.RequestUri?.ToString();
+            })
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+
+        var httpClient = new HttpClient(handlerMock.Object);
+        var client = new HomeAssistantClient(httpClient, _loggerMock.Object, httpConfig);
+
+        // Act
+        await client.SendVolumeUpdateAsync(50, false);
+
+        // Assert
+        Assert.Equal("http://test-ha.local/api/webhook/test_webhook", capturedUrl);
+    }
 }
+

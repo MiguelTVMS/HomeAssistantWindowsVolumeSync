@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -10,13 +9,11 @@ public class VolumeWatcherServiceTests
 {
     private readonly Mock<ILogger<VolumeWatcherService>> _mockLogger;
     private readonly Mock<IHomeAssistantClient> _mockHomeAssistantClient;
-    private readonly Mock<IConfiguration> _mockConfiguration;
 
     public VolumeWatcherServiceTests()
     {
         _mockLogger = new Mock<ILogger<VolumeWatcherService>>();
         _mockHomeAssistantClient = new Mock<IHomeAssistantClient>();
-        _mockConfiguration = new Mock<IConfiguration>();
     }
 
     [Fact]
@@ -25,8 +22,7 @@ public class VolumeWatcherServiceTests
         // Act
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object,
-            _mockConfiguration.Object);
+            _mockHomeAssistantClient.Object);
 
         // Assert
         Assert.NotNull(service);
@@ -38,8 +34,7 @@ public class VolumeWatcherServiceTests
         // Act & Assert - Should not throw
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object,
-            _mockConfiguration.Object);
+            _mockHomeAssistantClient.Object);
 
         Assert.NotNull(service);
     }
@@ -50,8 +45,7 @@ public class VolumeWatcherServiceTests
         // Arrange
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object,
-            _mockConfiguration.Object);
+            _mockHomeAssistantClient.Object);
 
         // Act
         service.SetPaused(true);
@@ -73,8 +67,7 @@ public class VolumeWatcherServiceTests
         // Arrange
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object,
-            _mockConfiguration.Object);
+            _mockHomeAssistantClient.Object);
 
         // Act
         service.SetPaused(false);
@@ -96,8 +89,7 @@ public class VolumeWatcherServiceTests
         // Arrange
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object,
-            _mockConfiguration.Object);
+            _mockHomeAssistantClient.Object);
 
         // Act
         service.SetPaused(true);
@@ -121,8 +113,7 @@ public class VolumeWatcherServiceTests
         // Arrange
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object,
-            _mockConfiguration.Object);
+            _mockHomeAssistantClient.Object);
 
         // Act - Should not throw
         service.Dispose();
@@ -137,8 +128,7 @@ public class VolumeWatcherServiceTests
         // Arrange
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object,
-            _mockConfiguration.Object);
+            _mockHomeAssistantClient.Object);
 
         // Assert - Verify it's a BackgroundService
         Assert.IsAssignableFrom<BackgroundService>(service);
@@ -151,8 +141,7 @@ public class VolumeWatcherServiceTests
         // Arrange
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object,
-            _mockConfiguration.Object);
+            _mockHomeAssistantClient.Object);
 
         using var cts = new CancellationTokenSource();
         cts.CancelAfter(TimeSpan.FromMilliseconds(100));
@@ -193,8 +182,7 @@ public class VolumeWatcherServiceTests
         // Arrange
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object,
-            _mockConfiguration.Object);
+            _mockHomeAssistantClient.Object);
 
         using var cts = new CancellationTokenSource();
         cts.CancelAfter(TimeSpan.FromMilliseconds(100));
@@ -229,8 +217,7 @@ public class VolumeWatcherServiceTests
         // Arrange
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object,
-            _mockConfiguration.Object);
+            _mockHomeAssistantClient.Object);
 
         // Act & Assert - Should complete without throwing
         await service.StopAsync(CancellationToken.None);
@@ -242,13 +229,11 @@ public class VolumeWatcherServiceTests
         // Arrange
         var logger = new Mock<ILogger<VolumeWatcherService>>();
         var client = new Mock<IHomeAssistantClient>();
-        var config = new Mock<IConfiguration>();
 
         // Act
         var service = new VolumeWatcherService(
             logger.Object,
-            client.Object,
-            config.Object);
+            client.Object);
 
         // Assert
         Assert.NotNull(service);
@@ -261,8 +246,7 @@ public class VolumeWatcherServiceTests
         // Arrange
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object,
-            _mockConfiguration.Object);
+            _mockHomeAssistantClient.Object);
 
         // Act
         service.SetPaused(true);
@@ -279,3 +263,4 @@ public class VolumeWatcherServiceTests
             Times.Exactly(2));
     }
 }
+
