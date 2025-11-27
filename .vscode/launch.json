@@ -10,7 +10,11 @@
       "args": [],
       "cwd": "${workspaceFolder}/src",
       "console": "externalTerminal",
-      "stopAtEntry": false
+      "stopAtEntry": false,
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTNET_ENVIRONMENT": "Development"
+      }
     },
     {
       "name": ".NET Core Test (All)",
