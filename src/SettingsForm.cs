@@ -16,6 +16,7 @@ public class SettingsForm : Form
     private CheckBox _runOnStartupCheckBox = null!;
     private Button _saveButton = null!;
     private Button _cancelButton = null!;
+    private Button _helpButton = null!;
     private Label _webhookUrlLabel = null!;
     private Label _webhookIdLabel = null!;
     private Label _targetMediaPlayerLabel = null!;
@@ -147,6 +148,19 @@ public class SettingsForm : Form
         };
         Controls.Add(_cancelButton);
 
+        // Help Button
+        _helpButton = new Button
+        {
+            Text = "?",
+            Left = 20,
+            Top = 270,
+            Width = 40,
+            Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold)
+        };
+        _helpButton.Click += OnHelpClick;
+        _toolTip.SetToolTip(_helpButton, "Home Assistant Installation Instructions");
+        Controls.Add(_helpButton);
+
         AcceptButton = _saveButton;
         CancelButton = _cancelButton;
     }
@@ -240,5 +254,23 @@ public class SettingsForm : Form
                 MessageBoxIcon.Error);
             DialogResult = DialogResult.None;
         }
+    }
+
+    private void OnHelpClick(object? sender, EventArgs e)
+    {
+        var message = "Home Assistant Webhook Automation Installation Instructions\n\n" +
+                      "To complete the setup, you need to configure a webhook automation in Home Assistant.\n\n" +
+                      "Detailed installation instructions are available at:\n" +
+                      "https://github.com/MiguelTVMS/HomeAssistantWindowsVolumeSync/blob/main/home-assistant/INSTALL.md\n\n" +
+                      "The instructions include:\n" +
+                      "• How to create the webhook automation\n" +
+                      "• Configuration examples\n" +
+                      "• Troubleshooting tips";
+
+        MessageBox.Show(
+            message,
+            "Home Assistant Installation Help",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Information);
     }
 }
