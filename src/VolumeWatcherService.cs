@@ -17,7 +17,7 @@ public class VolumeWatcherService : BackgroundService
     private MMDeviceEnumerator? _deviceEnumerator;
     private MMDevice? _defaultDevice;
     private AudioEndpointVolumeNotificationDelegate? _volumeDelegate;
-    private bool _isPaused;
+    private volatile bool _isPaused;
 
     public VolumeWatcherService(
         ILogger<VolumeWatcherService> logger,

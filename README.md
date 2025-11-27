@@ -122,6 +122,63 @@ Edit `appsettings.json` to configure the Home Assistant webhook URL and target m
 
 **Note:** The `TargetMediaPlayer` setting makes it easy to configure which media player to control. Simply copy and paste your media player entity ID here.
 
+### Logging Configuration
+
+The service supports comprehensive logging with different log levels and outputs. Logging is configured through `appsettings.json`:
+
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "HomeAssistantWindowsVolumeSync": "Debug",
+      "Microsoft": "Warning",
+      "System.Net.Http.HttpClient": "Warning"
+    },
+    "Console": {
+      "LogLevel": {
+        "Default": "Debug"
+      }
+    },
+    "EventLog": {
+      "SourceName": "HomeAssistant Windows Volume Sync",
+      "LogName": "Application",
+      "LogLevel": {
+        "Default": "Information"
+      }
+    }
+  }
+}
+```
+
+**Log Levels** (from most to least verbose):
+
+- `Trace`: Extremely detailed diagnostic information
+- `Debug`: Detailed information useful for debugging
+- `Information`: General informational messages about application flow
+- `Warning`: Potentially harmful situations or unexpected events
+- `Error`: Error events that might still allow the application to continue
+- `Critical`: Critical failures that require immediate attention
+
+**Log Outputs:**
+
+- **Console**: Logs appear in console window (when running in Debug mode or interactively)
+- **Debug**: Logs appear in debugger output window during development
+- **EventLog**: Logs written to Windows Event Viewer (Application log) when running as a service
+- **Startup Error Log**: Fatal startup errors are written to `startup-error.log` in the application directory
+
+**Recommended Settings:**
+
+- **Production**: Use `Information` level to balance detail with performance
+- **Development**: Use `Debug` or `Trace` level for detailed troubleshooting
+- **Troubleshooting**: Temporarily set to `Debug` or `Trace`, then back to `Information` when resolved
+
+**Viewing Logs:**
+
+- Console logs: Visible when running in Debug mode or via `dotnet run`
+- Event Viewer logs: Open Event Viewer → Windows Logs → Application → Filter by source "HomeAssistant Windows Volume Sync"
+- Startup errors: Check `startup-error.log` file in the application directory if service fails to start
+
 ## Building the Service
 
 ### Build for Development

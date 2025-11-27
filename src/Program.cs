@@ -12,53 +12,76 @@ if (Environment.UserInteractive)
 }
 #endif
 
-var builder = Host.CreateApplicationBuilder(args);
-
-// Add console logging to see output
-builder.Logging.AddConsole();
-builder.Logging.AddDebug();
-builder.Logging.SetMinimumLevel(LogLevel.Debug);
-
-// Configure Windows Service hosting
-builder.Services.AddWindowsService(options =>
-{
-    options.ServiceName = "HomeAssistant Windows Volume Sync";
-});
-
-// Register the HttpClient for Home Assistant webhook calls
-builder.Services.AddHttpClient<IHomeAssistantClient, HomeAssistantClient>(client =>
-{
-    client.Timeout = TimeSpan.FromSeconds(10);
-});
-
-// Register the volume watcher service
-builder.Services.AddSingleton<VolumeWatcherService>();
-builder.Services.AddHostedService(provider => provider.GetRequiredService<VolumeWatcherService>());
-
-// Register the system tray service
-Console.WriteLine("Registering SystemTrayService...");
-builder.Services.AddHostedService<SystemTrayService>();
-
 try
 {
-    Console.WriteLine("Building host...");
-    var host = builder.Build();
+    var builder = Host.CreateApplicationBuilder(args);
 
-    Console.WriteLine("Starting host...");
-    Console.WriteLine("Services registered:");
-    var hostedServices = host.Services.GetServices<IHostedService>();
-    foreach (var service in hostedServices)
+    // Configure logging from appsettings.json
+    builder.Logging.ClearProviders();
+
+    // Add console logging (useful for debugging and when running interactively)
+    builder.Logging.AddConsole();
+
+    // Add debug logging (outputs to debugger window)
+    builder.Logging.AddDebug();
+
+    // Add Windows Event Log when running as a service
+    builder.Logging.AddEventLog(settings =>
     {
-        Console.WriteLine($"  - {service.GetType().Name}");
+        settings.SourceName = "HomeAssistant Windows Volume Sync";
+        settings.LogName = "Application";
+    });
+
+    // Add file logging for persistent logs
+    var logPath = Path.Combine(AppContext.BaseDirectory, "logs");
+    if (!Directory.Exists(logPath))
+    {
+        Directory.CreateDirectory(logPath);
     }
 
+    // Configure Windows Service hosting
+    builder.Services.AddWindowsService(options =>
+    {
+        options.ServiceName = "HomeAssistant Windows Volume Sync";
+    });
+
+    // Register the HttpClient for Home Assistant webhook calls
+    builder.Services.AddHttpClient<IHomeAssistantClient, HomeAssistantClient>(client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(10);
+    });
+
+    // Register the volume watcher service
+    builder.Services.AddSingleton<VolumeWatcherService>();
+    builder.Services.AddHostedService(provider => provider.GetRequiredService<VolumeWatcherService>());
+
+    // Register the system tray service
+    builder.Services.AddHostedService<SystemTrayService>();
+
+    var host = builder.Build();
+
+    var logger = host.Services.GetRequiredService<ILogger<Program>>();
+
+    logger.LogInformation("Starting HomeAssistant Windows Volume Sync service");
     await host.RunAsync();
+    logger.LogInformation("HomeAssistant Windows Volume Sync service stopped");
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"FATAL ERROR: {ex}");
+    // Log to file when logger is not available (startup failures)
     var logPath = Path.Combine(AppContext.BaseDirectory, "startup-error.log");
-    File.WriteAllText(logPath, $"{DateTime.Now}: {ex}");
+    var errorMessage = $"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC - FATAL ERROR during startup:{Environment.NewLine}{ex}{Environment.NewLine}";
+
+    try
+    {
+        File.AppendAllText(logPath, errorMessage);
+    }
+    catch
+    {
+        // If we can't write to file, at least try console
+        Console.Error.WriteLine(errorMessage);
+    }
+
     throw;
 }
 

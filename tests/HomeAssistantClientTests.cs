@@ -17,12 +17,12 @@ public class HomeAssistantClientTests
     public HomeAssistantClientTests()
     {
         _loggerMock = new Mock<ILogger<HomeAssistantClient>>();
-        
+
         var configData = new Dictionary<string, string?>
         {
             { "HomeAssistant:WebhookUrl", TestWebhookUrl }
         };
-        
+
         _configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(configData)
             .Build();
@@ -57,7 +57,7 @@ public class HomeAssistantClientTests
         // Assert
         Assert.Equal(TestWebhookUrl, capturedUrl);
         Assert.NotNull(capturedContent);
-        
+
         var payload = JsonDocument.Parse(capturedContent);
         Assert.Equal(50, payload.RootElement.GetProperty("volume").GetInt32());
         Assert.False(payload.RootElement.GetProperty("mute").GetBoolean());
@@ -89,7 +89,7 @@ public class HomeAssistantClientTests
 
         // Assert
         Assert.NotNull(capturedContent);
-        
+
         var payload = JsonDocument.Parse(capturedContent);
         Assert.Equal(0, payload.RootElement.GetProperty("volume").GetInt32());
         Assert.True(payload.RootElement.GetProperty("mute").GetBoolean());
@@ -215,9 +215,137 @@ public class HomeAssistantClientTests
 
         // Assert
         Assert.NotNull(capturedContent);
-        
+
         var payload = JsonDocument.Parse(capturedContent);
         Assert.Equal(volume, payload.RootElement.GetProperty("volume").GetInt32());
         Assert.Equal(muted, payload.RootElement.GetProperty("mute").GetBoolean());
+    }
+
+    [Fact]
+    public async Task SendVolumeUpdateAsync_WithTimeout_LogsWarning()
+    {
+        // Arrange
+        var configWithPlayer = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                { "HomeAssistant:WebhookUrl", TestWebhookUrl },
+                { "HomeAssistant:TargetMediaPlayer", "media_player.test" }
+            })
+            .Build();
+
+        var handlerMock = new Mock<HttpMessageHandler>();
+
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ThrowsAsync(new TaskCanceledException("Request timed out"));
+
+        var httpClient = new HttpClient(handlerMock.Object);
+        var client = new HomeAssistantClient(httpClient, _loggerMock.Object, configWithPlayer);
+
+        // Act
+        await client.SendVolumeUpdateAsync(50, false);
+
+        // Assert - verify warning was logged (timeout warning)
+        _loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("timed out")),
+                It.IsAny<TaskCanceledException>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task SendVolumeUpdateAsync_WithTargetMediaPlayer_IncludesInPayload()
+    {
+        // Arrange
+        var configWithPlayer = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                { "HomeAssistant:WebhookUrl", TestWebhookUrl },
+                { "HomeAssistant:TargetMediaPlayer", "media_player.test_speaker" }
+            })
+            .Build();
+
+        var handlerMock = new Mock<HttpMessageHandler>();
+        string? capturedContent = null;
+
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>(async (request, _) =>
+            {
+                capturedContent = await request.Content!.ReadAsStringAsync();
+            })
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+
+        var httpClient = new HttpClient(handlerMock.Object);
+        var client = new HomeAssistantClient(httpClient, _loggerMock.Object, configWithPlayer);
+
+        // Act
+        await client.SendVolumeUpdateAsync(75, false);
+
+        // Assert
+        Assert.NotNull(capturedContent);
+
+        var payload = JsonDocument.Parse(capturedContent);
+        Assert.Equal("media_player.test_speaker", payload.RootElement.GetProperty("targetMediaPlayer").GetString());
+    }
+
+    [Fact]
+    public void Constructor_WithMissingWebhookUrl_LogsWarning()
+    {
+        // Arrange
+        var emptyConfig = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>())
+            .Build();
+
+        var httpClient = new HttpClient();
+
+        // Act
+        var client = new HomeAssistantClient(httpClient, _loggerMock.Object, emptyConfig);
+
+        // Assert - verify warning was logged
+        _loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("webhook URL is not configured")),
+                null,
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public void Constructor_WithMissingTargetMediaPlayer_LogsWarning()
+    {
+        // Arrange
+        var configWithoutPlayer = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                { "HomeAssistant:WebhookUrl", TestWebhookUrl }
+            })
+            .Build();
+
+        var httpClient = new HttpClient();
+
+        // Act
+        var client = new HomeAssistantClient(httpClient, _loggerMock.Object, configWithoutPlayer);
+
+        // Assert - verify warning was logged
+        _loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Target media player is not configured")),
+                null,
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
     }
 }
