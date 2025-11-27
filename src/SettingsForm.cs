@@ -258,19 +258,38 @@ public class SettingsForm : Form
 
     private void OnHelpClick(object? sender, EventArgs e)
     {
-        var message = "Home Assistant Webhook Automation Installation Instructions\n\n" +
-                      "To complete the setup, you need to configure a webhook automation in Home Assistant.\n\n" +
-                      "Detailed installation instructions are available at:\n" +
-                      "https://github.com/MiguelTVMS/HomeAssistantWindowsVolumeSync/blob/main/home-assistant/INSTALL.md\n\n" +
-                      "The instructions include:\n" +
-                      "• How to create the webhook automation\n" +
-                      "• Configuration examples\n" +
-                      "• Troubleshooting tips";
+        const string url = "https://github.com/MiguelTVMS/HomeAssistantWindowsVolumeSync/blob/main/home-assistant/INSTALL.md";
 
-        MessageBox.Show(
-            message,
+        var result = MessageBox.Show(
+            "Home Assistant Webhook Automation Installation Instructions\n\n" +
+            "To complete the setup, you need to configure a webhook automation in Home Assistant.\n\n" +
+            "The instructions include:\n" +
+            "• How to create the webhook automation\n" +
+            "• Configuration examples\n" +
+            "• Troubleshooting tips\n\n" +
+            "Would you like to open the installation guide in your browser?",
             "Home Assistant Installation Help",
-            MessageBoxButtons.OK,
+            MessageBoxButtons.YesNo,
             MessageBoxIcon.Information);
+
+        if (result == DialogResult.Yes)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Failed to open browser:\n{ex.Message}\n\nPlease visit:\n{url}",
+                    "Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
     }
 }
