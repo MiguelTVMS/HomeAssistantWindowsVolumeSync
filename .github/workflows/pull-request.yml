@@ -32,13 +32,13 @@ jobs:
         run: dotnet build HomeAssistantWindowsVolumeSync.sln --configuration Release --no-restore
 
       - name: Run tests
-        run: dotnet test HomeAssistantWindowsVolumeSync.sln --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
+        run: dotnet test HomeAssistantWindowsVolumeSync.sln --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx" --results-directory ./TestResults
 
       - name: Publish test results
         uses: dorny/test-reporter@v1
         if: always()
         with:
           name: Test Results
-          path: "**/test-results.trx"
+          path: "TestResults/*.trx"
           reporter: dotnet-trx
           fail-on-error: true
