@@ -25,25 +25,12 @@ try
     // Add debug logging (outputs to debugger window)
     builder.Logging.AddDebug();
 
-    // Add Windows Event Log when running as a service
-    builder.Logging.AddEventLog(settings =>
-    {
-        settings.SourceName = "HomeAssistant Windows Volume Sync";
-        settings.LogName = "Application";
-    });
-
     // Add file logging for persistent logs
     var logPath = Path.Combine(AppContext.BaseDirectory, "logs");
     if (!Directory.Exists(logPath))
     {
         Directory.CreateDirectory(logPath);
     }
-
-    // Configure Windows Service hosting
-    builder.Services.AddWindowsService(options =>
-    {
-        options.ServiceName = "HomeAssistant Windows Volume Sync";
-    });
 
     // Register the HttpClient for Home Assistant webhook calls
     builder.Services.AddHttpClient<IHomeAssistantClient, HomeAssistantClient>(client =>
@@ -62,9 +49,9 @@ try
 
     var logger = host.Services.GetRequiredService<ILogger<Program>>();
 
-    logger.LogInformation("Starting HomeAssistant Windows Volume Sync service");
+    logger.LogInformation("Starting HomeAssistant Windows Volume Sync application");
     await host.RunAsync();
-    logger.LogInformation("HomeAssistant Windows Volume Sync service stopped");
+    logger.LogInformation("HomeAssistant Windows Volume Sync application stopped");
 }
 catch (Exception ex)
 {

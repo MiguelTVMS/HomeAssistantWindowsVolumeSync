@@ -14,6 +14,7 @@ public class SystemTrayServiceTests
     private readonly Mock<IServiceProvider> _mockServiceProvider;
     private readonly Mock<IServiceScope> _mockServiceScope;
     private readonly Mock<IServiceScopeFactory> _mockServiceScopeFactory;
+    private readonly Mock<IConfiguration> _mockConfiguration;
     private VolumeWatcherService? _volumeWatcherService;
 
     public SystemTrayServiceTests()
@@ -23,6 +24,7 @@ public class SystemTrayServiceTests
         _mockServiceProvider = new Mock<IServiceProvider>();
         _mockServiceScope = new Mock<IServiceScope>();
         _mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
+        _mockConfiguration = new Mock<IConfiguration>();
 
         // Create a real VolumeWatcherService with mocked dependencies
         var mockVolumeWatcherLogger = new Mock<ILogger<VolumeWatcherService>>();
@@ -47,7 +49,8 @@ public class SystemTrayServiceTests
         var service = new SystemTrayService(
             _mockLogger.Object,
             _mockLifetime.Object,
-            _mockServiceProvider.Object);
+            _mockServiceProvider.Object,
+            _mockConfiguration.Object);
 
         // Assert
         Assert.NotNull(service);
@@ -68,7 +71,8 @@ public class SystemTrayServiceTests
         var service = new SystemTrayService(
             _mockLogger.Object,
             _mockLifetime.Object,
-            _mockServiceProvider.Object);
+            _mockServiceProvider.Object,
+            _mockConfiguration.Object);
 
         Assert.NotNull(service);
     }
@@ -80,7 +84,8 @@ public class SystemTrayServiceTests
         var service = new SystemTrayService(
             _mockLogger.Object,
             _mockLifetime.Object,
-            _mockServiceProvider.Object);
+            _mockServiceProvider.Object,
+            _mockConfiguration.Object);
 
         // Act - Should not throw
         service.Dispose();
@@ -96,7 +101,8 @@ public class SystemTrayServiceTests
         var service = new SystemTrayService(
             _mockLogger.Object,
             _mockLifetime.Object,
-            _mockServiceProvider.Object);
+            _mockServiceProvider.Object,
+            _mockConfiguration.Object);
 
         // Assert - Verify it's a BackgroundService
         Assert.IsAssignableFrom<BackgroundService>(service);
@@ -110,12 +116,14 @@ public class SystemTrayServiceTests
         var logger = new Mock<ILogger<SystemTrayService>>();
         var lifetime = new Mock<IHostApplicationLifetime>();
         var serviceProvider = new Mock<IServiceProvider>();
+        var configuration = new Mock<IConfiguration>();
 
         // Act
         var service = new SystemTrayService(
             logger.Object,
             lifetime.Object,
-            serviceProvider.Object);
+            serviceProvider.Object,
+            configuration.Object);
 
         // Assert
         Assert.NotNull(service);
