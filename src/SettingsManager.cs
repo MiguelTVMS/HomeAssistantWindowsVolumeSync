@@ -8,20 +8,22 @@ namespace HomeAssistantWindowsVolumeSync;
 public class SettingsManager
 {
     private readonly string _settingsFilePath;
+    private readonly IAppConfiguration? _appConfiguration;
 
-    public SettingsManager()
+    public SettingsManager(IAppConfiguration? appConfiguration = null)
     {
         _settingsFilePath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+        _appConfiguration = appConfiguration;
     }
 
     /// <summary>
-    /// Saves the Home Assistant settings to appsettings.json
+    /// Saves the Home Assistant settings to appsettings.json and reloads configuration
     /// </summary>
-    public void SaveSettings(string webhookUrl, string targetMediaPlayer)
+    public void SaveSettings(string webhookUrl, string webhookId, string targetMediaPlayer)
     {
         // Read the current settings file
         var json = File.ReadAllText(_settingsFilePath);
-        var jsonDoc = JsonDocument.Parse(json);
+        using var jsonDoc = JsonDocument.Parse(json);
 
         // Create a mutable dictionary from the JSON
         var settings = new Dictionary<string, object?>();
@@ -30,12 +32,24 @@ public class SettingsManager
         {
             if (property.Name == "HomeAssistant")
             {
-                // Update the HomeAssistant section
-                settings[property.Name] = new Dictionary<string, string>
+                // Update the HomeAssistant section while preserving other settings
+                var homeAssistantSettings = new Dictionary<string, object?>();
+
+                // Preserve existing settings
+                if (property.Value.ValueKind == JsonValueKind.Object)
                 {
-                    ["WebhookUrl"] = webhookUrl,
-                    ["TargetMediaPlayer"] = targetMediaPlayer
-                };
+                    foreach (var subProperty in property.Value.EnumerateObject())
+                    {
+                        homeAssistantSettings[subProperty.Name] = JsonSerializer.Deserialize<object>(subProperty.Value.GetRawText());
+                    }
+                }
+
+                // Update the specific values
+                homeAssistantSettings["WebhookUrl"] = webhookUrl;
+                homeAssistantSettings["WebhookId"] = webhookId;
+                homeAssistantSettings["TargetMediaPlayer"] = targetMediaPlayer;
+
+                settings[property.Name] = homeAssistantSettings;
             }
             else
             {
@@ -47,10 +61,13 @@ public class SettingsManager
         // If HomeAssistant section doesn't exist, create it
         if (!settings.ContainsKey("HomeAssistant"))
         {
-            settings["HomeAssistant"] = new Dictionary<string, string>
+            settings["HomeAssistant"] = new Dictionary<string, object?>
             {
                 ["WebhookUrl"] = webhookUrl,
-                ["TargetMediaPlayer"] = targetMediaPlayer
+                ["WebhookPath"] = "/api/webhook/",
+                ["WebhookId"] = webhookId,
+                ["TargetMediaPlayer"] = targetMediaPlayer,
+                ["StrictTLS"] = true  // Default to secure
             };
         }
 
@@ -62,5 +79,13 @@ public class SettingsManager
 
         var updatedJson = JsonSerializer.Serialize(settings, options);
         File.WriteAllText(_settingsFilePath, updatedJson);
+
+        // Reload configuration to apply changes immediately
+        if (_appConfiguration != null)
+        {
+            // Small delay to ensure file write is complete
+            Thread.Sleep(100);
+            _appConfiguration.Reload();
+        }
     }
 }

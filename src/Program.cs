@@ -1,4 +1,5 @@
 using HomeAssistantWindowsVolumeSync;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -32,10 +33,35 @@ try
         Directory.CreateDirectory(logPath);
     }
 
+    // Register the centralized application configuration
+    builder.Services.AddSingleton<IAppConfiguration>(provider =>
+    {
+        var configuration = provider.GetRequiredService<IConfiguration>();
+        return new AppConfiguration(configuration);
+    });
+
     // Register the HttpClient for Home Assistant webhook calls
     builder.Services.AddHttpClient<IHomeAssistantClient, HomeAssistantClient>(client =>
     {
         client.Timeout = TimeSpan.FromSeconds(10);
+    })
+    .ConfigurePrimaryHttpMessageHandler(serviceProvider =>
+    {
+        var appConfig = serviceProvider.GetRequiredService<IAppConfiguration>();
+        var strictTls = appConfig.StrictTLS;
+
+        var handler = new HttpClientHandler();
+
+        if (!strictTls)
+        {
+            // Allow any certificate when StrictTLS is disabled
+            handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true;
+
+            var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
+            logger.LogWarning("StrictTLS is disabled. Certificate validation is bypassed for Home Assistant connections.");
+        }
+
+        return handler;
     });
 
     // Register the volume watcher service
@@ -45,30 +71,30 @@ try
     // Register the system tray service
     builder.Services.AddHostedService<SystemTrayService>();
 
+    // Register the centralized application logger
+    builder.Services.AddSingleton<IAppLogger>(provider =>
+    {
+        var loggerFactory = provider.GetRequiredService<ILoggerFactory>();
+        var logger = loggerFactory.CreateLogger("HomeAssistantWindowsVolumeSync");
+        return new AppLogger(logger);
+    });
+
     var host = builder.Build();
 
-    var logger = host.Services.GetRequiredService<ILogger<Program>>();
+    var appLogger = host.Services.GetRequiredService<IAppLogger>();
 
-    logger.LogInformation("Starting HomeAssistant Windows Volume Sync application");
+    appLogger.LogInformation("Starting HomeAssistant Windows Volume Sync application");
     await host.RunAsync();
-    logger.LogInformation("HomeAssistant Windows Volume Sync application stopped");
+    appLogger.LogInformation("HomeAssistant Windows Volume Sync application stopped");
 }
 catch (Exception ex)
 {
-    // Log to file when logger is not available (startup failures)
-    var logPath = Path.Combine(AppContext.BaseDirectory, "startup-error.log");
-    var errorMessage = $"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC - FATAL ERROR during startup:{Environment.NewLine}{ex}{Environment.NewLine}";
+    // Create a fallback logger for startup errors when DI container is not available
+    var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+    var logger = loggerFactory.CreateLogger("HomeAssistantWindowsVolumeSync");
+    var appLogger = new AppLogger(logger);
 
-    try
-    {
-        File.AppendAllText(logPath, errorMessage);
-    }
-    catch
-    {
-        // If we can't write to file, at least try console
-        Console.Error.WriteLine(errorMessage);
-    }
-
+    appLogger.LogStartupError(ex);
     throw;
 }
 

@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -14,7 +13,7 @@ public class SystemTrayService : BackgroundService
     private readonly ILogger<SystemTrayService> _logger;
     private readonly IHostApplicationLifetime _lifetime;
     private readonly IServiceProvider _serviceProvider;
-    private readonly IConfiguration _configuration;
+    private readonly IAppConfiguration _configuration;
     private VolumeWatcherService? _volumeWatcherService;
     private NotifyIcon? _notifyIcon;
     private ContextMenuStrip? _contextMenu;
@@ -26,7 +25,7 @@ public class SystemTrayService : BackgroundService
         ILogger<SystemTrayService> logger,
         IHostApplicationLifetime lifetime,
         IServiceProvider serviceProvider,
-        IConfiguration configuration)
+        IAppConfiguration configuration)
     {
         _logger = logger;
         _lifetime = lifetime;
@@ -243,8 +242,10 @@ public class SystemTrayService : BackgroundService
 
         try
         {
-            var settingsManager = new SettingsManager();
-            using var settingsForm = new SettingsForm(_configuration, settingsManager.SaveSettings);
+            var settingsManager = new SettingsManager(_configuration);
+            using var settingsForm = new SettingsForm(
+                _configuration,
+                (url, id, player) => settingsManager.SaveSettings(url, id, player));
 
             var result = settingsForm.ShowDialog();
 

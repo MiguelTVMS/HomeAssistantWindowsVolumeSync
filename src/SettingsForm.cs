@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Configuration;
 using System.Windows.Forms;
 
 namespace HomeAssistantWindowsVolumeSync;
@@ -8,17 +7,21 @@ namespace HomeAssistantWindowsVolumeSync;
 /// </summary>
 public class SettingsForm : Form
 {
-    private readonly IConfiguration _configuration;
-    private readonly Action<string, string> _saveSettings;
+    private readonly IAppConfiguration _configuration;
+    private readonly Action<string, string, string> _saveSettings;
 
     private TextBox _webhookUrlTextBox = null!;
+    private TextBox _webhookIdTextBox = null!;
     private TextBox _targetMediaPlayerTextBox = null!;
+    private CheckBox _runOnStartupCheckBox = null!;
     private Button _saveButton = null!;
     private Button _cancelButton = null!;
     private Label _webhookUrlLabel = null!;
+    private Label _webhookIdLabel = null!;
     private Label _targetMediaPlayerLabel = null!;
+    private ToolTip _toolTip = null!;
 
-    public SettingsForm(IConfiguration configuration, Action<string, string> saveSettings)
+    public SettingsForm(IAppConfiguration configuration, Action<string, string, string> saveSettings)
     {
         _configuration = configuration;
         _saveSettings = saveSettings;
@@ -31,16 +34,24 @@ public class SettingsForm : Form
         // Form settings
         Text = "Home Assistant Volume Sync - Settings";
         Width = 600;
-        Height = 250;
+        Height = 370;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
 
+        // Create ToolTip
+        _toolTip = new ToolTip
+        {
+            AutoPopDelay = 10000,
+            InitialDelay = 500,
+            ReshowDelay = 100
+        };
+
         // Webhook URL Label
         _webhookUrlLabel = new Label
         {
-            Text = "Home Assistant Webhook URL:",
+            Text = "Home Assistant URL:",
             Left = 20,
             Top = 20,
             Width = 200
@@ -53,16 +64,41 @@ public class SettingsForm : Form
             Left = 20,
             Top = 45,
             Width = 540,
-            Font = new System.Drawing.Font("Segoe UI", 9F)
+            Font = new System.Drawing.Font("Segoe UI", 9F),
+            PlaceholderText = "https://your-home-assistant-url"
         };
         Controls.Add(_webhookUrlTextBox);
+
+        // Webhook ID Label
+        _webhookIdLabel = new Label
+        {
+            Text = "Webhook ID:",
+            Left = 20,
+            Top = 80,
+            Width = 200
+        };
+        Controls.Add(_webhookIdLabel);
+
+        // Webhook ID TextBox
+        _webhookIdTextBox = new TextBox
+        {
+            Left = 20,
+            Top = 105,
+            Width = 540,
+            Font = new System.Drawing.Font("Segoe UI", 9F),
+            PlaceholderText = "homeassistant_windows_volume_sync"
+        };
+        _toolTip.SetToolTip(_webhookIdTextBox,
+            "The webhook automation for Home Assistant installation is available at:\n" +
+            "https://github.com/MiguelTVMS/HomeAssistantWindowsVolumeSync/blob/main/home-assistant/INSTALL.md");
+        Controls.Add(_webhookIdTextBox);
 
         // Target Media Player Label
         _targetMediaPlayerLabel = new Label
         {
             Text = "Target Media Player Entity ID:",
             Left = 20,
-            Top = 80,
+            Top = 140,
             Width = 200
         };
         Controls.Add(_targetMediaPlayerLabel);
@@ -71,18 +107,29 @@ public class SettingsForm : Form
         _targetMediaPlayerTextBox = new TextBox
         {
             Left = 20,
-            Top = 105,
+            Top = 165,
             Width = 540,
             Font = new System.Drawing.Font("Segoe UI", 9F)
         };
         Controls.Add(_targetMediaPlayerTextBox);
+
+        // Run on Startup CheckBox
+        _runOnStartupCheckBox = new CheckBox
+        {
+            Text = "Run when Windows starts",
+            Left = 20,
+            Top = 200,
+            Width = 540,
+            Font = new System.Drawing.Font("Segoe UI", 9F)
+        };
+        Controls.Add(_runOnStartupCheckBox);
 
         // Save Button
         _saveButton = new Button
         {
             Text = "Save",
             Left = 380,
-            Top = 160,
+            Top = 270,
             Width = 80,
             DialogResult = DialogResult.OK
         };
@@ -94,7 +141,7 @@ public class SettingsForm : Form
         {
             Text = "Cancel",
             Left = 480,
-            Top = 160,
+            Top = 270,
             Width = 80,
             DialogResult = DialogResult.Cancel
         };
@@ -106,19 +153,33 @@ public class SettingsForm : Form
 
     private void LoadSettings()
     {
-        _webhookUrlTextBox.Text = _configuration["HomeAssistant:WebhookUrl"] ?? "";
-        _targetMediaPlayerTextBox.Text = _configuration["HomeAssistant:TargetMediaPlayer"] ?? "";
+        _webhookUrlTextBox.Text = _configuration.WebhookUrl ?? "";
+        _webhookIdTextBox.Text = _configuration.WebhookId ?? "";
+        _targetMediaPlayerTextBox.Text = _configuration.TargetMediaPlayer ?? "";
+        _runOnStartupCheckBox.Checked = WindowsStartupManager.IsStartupEnabled();
     }
 
     private void OnSaveClick(object? sender, EventArgs e)
     {
         var webhookUrl = _webhookUrlTextBox.Text.Trim();
+        var webhookId = _webhookIdTextBox.Text.Trim();
         var targetMediaPlayer = _targetMediaPlayerTextBox.Text.Trim();
 
         if (string.IsNullOrWhiteSpace(webhookUrl))
         {
             MessageBox.Show(
-                "Webhook URL cannot be empty.",
+                "Home Assistant URL cannot be empty.",
+                "Validation Error",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            DialogResult = DialogResult.None;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(webhookId))
+        {
+            MessageBox.Show(
+                "Webhook ID cannot be empty.",
                 "Validation Error",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
@@ -139,7 +200,31 @@ public class SettingsForm : Form
 
         try
         {
-            _saveSettings(webhookUrl, targetMediaPlayer);
+            _saveSettings(webhookUrl, webhookId, targetMediaPlayer);
+
+            // Handle Windows startup setting
+            try
+            {
+                if (_runOnStartupCheckBox.Checked)
+                {
+                    WindowsStartupManager.EnableStartup();
+                }
+                else
+                {
+                    WindowsStartupManager.DisableStartup();
+                }
+            }
+            catch (Exception startupEx)
+            {
+                MessageBox.Show(
+                    $"Settings saved, but failed to update startup configuration:\n{startupEx.Message}",
+                    "Startup Warning",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                DialogResult = DialogResult.None;
+                return;
+            }
+
             MessageBox.Show(
                 "Settings saved successfully!\n\nThe application will use the new settings for future volume updates.",
                 "Settings Saved",

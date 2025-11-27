@@ -1,5 +1,4 @@
 using System.Net.Http.Json;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace HomeAssistantWindowsVolumeSync;
@@ -11,28 +10,62 @@ public class HomeAssistantClient : IHomeAssistantClient
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<HomeAssistantClient> _logger;
-    private readonly string? _webhookUrl;
-    private readonly string? _targetMediaPlayer;
+    private readonly IAppConfiguration _configuration;
+    private string? _webhookUrl;
+    private string? _targetMediaPlayer;
+    private bool _strictTls;
 
     public HomeAssistantClient(
         HttpClient httpClient,
         ILogger<HomeAssistantClient> logger,
-        IConfiguration configuration)
+        IAppConfiguration configuration)
     {
         _httpClient = httpClient;
         _logger = logger;
-        _webhookUrl = configuration["HomeAssistant:WebhookUrl"];
-        _targetMediaPlayer = configuration["HomeAssistant:TargetMediaPlayer"];
+        _configuration = configuration;
+
+        // Subscribe to configuration changes
+        _configuration.ConfigurationReloaded += OnConfigurationReloaded;
+
+        LoadConfiguration();
+    }
+
+    private void LoadConfiguration()
+    {
+        _webhookUrl = _configuration.FullWebhookUrl;
+        _targetMediaPlayer = _configuration.TargetMediaPlayer;
+        _strictTls = _configuration.StrictTLS;
 
         if (string.IsNullOrEmpty(_webhookUrl))
         {
-            _logger.LogWarning("HomeAssistant webhook URL is not configured. Please set 'HomeAssistant:WebhookUrl' in appsettings.json");
+            _logger.LogWarning("HomeAssistant webhook URL is not configured. Please set 'HomeAssistant:WebhookUrl' and 'HomeAssistant:WebhookId' in appsettings.json");
+        }
+        else
+        {
+            var uri = new Uri(_webhookUrl);
+            if (uri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning("Using HTTP (unencrypted) connection to Home Assistant: {Url}", _webhookUrl);
+            }
+            else if (uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!_strictTls)
+                {
+                    _logger.LogWarning("Using HTTPS with certificate validation disabled (StrictTLS=false)");
+                }
+            }
         }
 
         if (string.IsNullOrEmpty(_targetMediaPlayer))
         {
             _logger.LogWarning("Target media player is not configured. Please set 'HomeAssistant:TargetMediaPlayer' in appsettings.json");
         }
+    }
+
+    private void OnConfigurationReloaded(object? sender, EventArgs e)
+    {
+        _logger.LogInformation("Configuration reloaded, updating HomeAssistantClient settings");
+        LoadConfiguration();
     }
 
     /// <inheritdoc/>

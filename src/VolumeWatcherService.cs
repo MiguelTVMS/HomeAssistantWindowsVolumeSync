@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
 using NAudio.CoreAudioApi;
 
 namespace HomeAssistantWindowsVolumeSync;
@@ -13,7 +12,6 @@ public class VolumeWatcherService : BackgroundService
 {
     private readonly ILogger<VolumeWatcherService> _logger;
     private readonly IHomeAssistantClient _homeAssistantClient;
-    private readonly IConfiguration _configuration;
     private MMDeviceEnumerator? _deviceEnumerator;
     private MMDevice? _defaultDevice;
     private AudioEndpointVolumeNotificationDelegate? _volumeDelegate;
@@ -21,12 +19,10 @@ public class VolumeWatcherService : BackgroundService
 
     public VolumeWatcherService(
         ILogger<VolumeWatcherService> logger,
-        IHomeAssistantClient homeAssistantClient,
-        IConfiguration configuration)
+        IHomeAssistantClient homeAssistantClient)
     {
         _logger = logger;
         _homeAssistantClient = homeAssistantClient;
-        _configuration = configuration;
     }
 
     /// <summary>

@@ -1,6 +1,6 @@
 # Home Assistant Automation Example
 # This automation receives volume updates from the Windows Volume Sync service
-# and applies them to a media player entity (e.g., Sonos speaker)
+# and applies them to a media player entity
 
 alias: Windows Volume Sync
 description: Syncs Windows system volume to a Home Assistant media player
@@ -19,7 +19,7 @@ trigger:
 # Actions: Set the volume and mute state on the media player
 action:
   - variables:
-      target_media_player: "{{ trigger.json.targetMediaPlayer | default('media_player.your_sonos_speaker') }}"
+      target_media_player: "{{ trigger.json.targetMediaPlayer }}"
       volume: "{{ trigger.json.volume }}"
       mute: "{{ trigger.json.mute }}"
       volume_level: "{{ trigger.json.volume / 100 }}"

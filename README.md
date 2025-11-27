@@ -1,9 +1,9 @@
 # HomeAssistantWindowsVolumeSync
 
-HomeAssistantWindowsVolumeSync is a lightweight Windows service that synchronizes the **Windows system master volume** with a **Home Assistant** media player (typically Sonos).
+HomeAssistantWindowsVolumeSync is a lightweight Windows service that synchronizes the **Windows system master volume** with a **Home Assistant** media player.
 Whenever the volume changes in Windows, the service detects it and sends the updated value to a Home Assistant webhook in real time.
 
-This allows Windows hardware volume keys, app volume sliders, and external volume knobs to directly control Sonos volume through Home Assistant.
+This allows Windows hardware volume keys, app volume sliders, and external volume knobs to directly control your media player volume through Home Assistant.
 
 ## Features
 
@@ -12,7 +12,7 @@ This allows Windows hardware volume keys, app volume sliders, and external volum
 - **System tray integration** - convenient pause/resume controls from the taskbar
 - **Native Windows Service** - runs in the background, starts automatically
 - **Configurable** - easy webhook endpoint configuration
-- **Universal compatibility** - works with any Home Assistant media player, including Sonos
+- **Universal compatibility** - works with any Home Assistant media player
 - **Modern architecture** - built using .NET 8 Worker Service
 
 ## System Tray Icon
@@ -42,7 +42,7 @@ This creates both `app.ico` and `app.png` files in the `src` directory. The PNG 
 ### Home Assistant
 
 - A working Home Assistant instance
-- A media player entity (example: a Sonos speaker)
+- A media player entity (example: a speaker)
 - Remote or LAN URL reachable from Windows
 
 ### Windows
@@ -109,18 +109,25 @@ HomeAssistantWindowsVolumeSync/
 
 ## Configuration
 
-Edit `appsettings.json` to configure the Home Assistant webhook URL and target media player:
+The application can be configured through the Settings window (right-click system tray icon → Settings):
+
+- **Home Assistant URL**: Your Home Assistant base URL (e.g., `https://your-home-assistant-url`)
+- **Webhook ID**: The webhook identifier (default: `homeassistant_windows_volume_sync`)
+- **Target Media Player**: Your media player entity ID (e.g., `media_player.speaker`)
+
+Alternatively, you can edit `appsettings.json` directly:
 
 ```json
 {
   "HomeAssistant": {
-    "WebhookUrl": "https://your-home-assistant-url/api/webhook/homeassistant_windows_volume_sync",
-    "TargetMediaPlayer": "media_player.your_sonos_speaker"
+    "WebhookUrl": "https://your-home-assistant-url",
+    "WebhookId": "homeassistant_windows_volume_sync",
+    "TargetMediaPlayer": "media_player.speaker"
   }
 }
 ```
 
-**Note:** The `TargetMediaPlayer` setting makes it easy to configure which media player to control. Simply copy and paste your media player entity ID here.
+**Note:** Changes made through the Settings window are saved automatically and applied immediately.
 
 ### Logging Configuration
 

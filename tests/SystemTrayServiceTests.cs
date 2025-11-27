@@ -14,7 +14,7 @@ public class SystemTrayServiceTests
     private readonly Mock<IServiceProvider> _mockServiceProvider;
     private readonly Mock<IServiceScope> _mockServiceScope;
     private readonly Mock<IServiceScopeFactory> _mockServiceScopeFactory;
-    private readonly Mock<IConfiguration> _mockConfiguration;
+    private readonly Mock<IAppConfiguration> _mockConfiguration;
     private VolumeWatcherService? _volumeWatcherService;
 
     public SystemTrayServiceTests()
@@ -24,17 +24,15 @@ public class SystemTrayServiceTests
         _mockServiceProvider = new Mock<IServiceProvider>();
         _mockServiceScope = new Mock<IServiceScope>();
         _mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
-        _mockConfiguration = new Mock<IConfiguration>();
+        _mockConfiguration = new Mock<IAppConfiguration>();
 
         // Create a real VolumeWatcherService with mocked dependencies
         var mockVolumeWatcherLogger = new Mock<ILogger<VolumeWatcherService>>();
         var mockHomeAssistantClient = new Mock<IHomeAssistantClient>();
-        var mockConfiguration = new Mock<IConfiguration>();
 
         _volumeWatcherService = new VolumeWatcherService(
             mockVolumeWatcherLogger.Object,
-            mockHomeAssistantClient.Object,
-            mockConfiguration.Object);
+            mockHomeAssistantClient.Object);
 
         // Setup service provider to return the VolumeWatcherService
         _mockServiceProvider
@@ -116,7 +114,7 @@ public class SystemTrayServiceTests
         var logger = new Mock<ILogger<SystemTrayService>>();
         var lifetime = new Mock<IHostApplicationLifetime>();
         var serviceProvider = new Mock<IServiceProvider>();
-        var configuration = new Mock<IConfiguration>();
+        var configuration = new Mock<IAppConfiguration>();
 
         // Act
         var service = new SystemTrayService(
