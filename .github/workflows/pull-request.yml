@@ -38,6 +38,27 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json', '**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Cache build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            src/bin
+            src/obj
+            tests/bin
+            tests/obj
+          key: ${{ runner.os }}-build-${{ matrix.configuration }}-${{ hashFiles('**/*.cs', '**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ matrix.configuration }}-
+            ${{ runner.os }}-build-
+
       - name: Restore dependencies
         run: dotnet restore HomeAssistantWindowsVolumeSync.sln
 
