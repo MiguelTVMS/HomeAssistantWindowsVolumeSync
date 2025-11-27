@@ -1,25 +1,48 @@
 # HomeAssistantWindowsVolumeSync
 
-HomeAssistantWindowsVolumeSync is a lightweight Windows service that synchronizes the **Windows system master volume** with a **Home Assistant** media player (typically Sonos).
+HomeAssistantWindowsVolumeSync is a lightweight Windows service that synchronizes the **Windows system master volume** with a **Home Assistant** media player.
 Whenever the volume changes in Windows, the service detects it and sends the updated value to a Home Assistant webhook in real time.
 
-This allows Windows hardware volume keys, app volume sliders, and external volume knobs to directly control Sonos volume through Home Assistant.
+This allows Windows hardware volume keys, app volume sliders, and external volume knobs to directly control your media player volume through Home Assistant.
 
 ## Features
 
 - **Event-driven volume detection** - no polling, near-zero CPU usage
 - **Instant sync** - volume changes are sent immediately to Home Assistant
+- **System tray integration** - convenient pause/resume controls from the taskbar
 - **Native Windows Service** - runs in the background, starts automatically
 - **Configurable** - easy webhook endpoint configuration
-- **Universal compatibility** - works with any Home Assistant media player, including Sonos
+- **Universal compatibility** - works with any Home Assistant media player
 - **Modern architecture** - built using .NET 8 Worker Service
+
+## System Tray Icon
+
+The service includes a system tray icon that appears in your Windows taskbar notification area, providing easy control over the volume sync:
+
+- **Right-click** the icon to access the menu:
+  - **Status** - Shows whether the service is running or paused
+  - **Pause/Resume** - Temporarily pause or resume volume synchronization
+  - **Exit** - Stop the service
+- **Double-click** the icon to see a status dialog
+
+When paused, the service continues to monitor Windows volume changes but does not send updates to Home Assistant. This is useful if you want to temporarily control your media player directly from Home Assistant without interference from Windows volume changes.
+
+### Icon Creation
+
+The project includes a Python script (`create_icon.py`) to generate the system tray icon based on the Material Design Icons `home-sound-out` icon:
+
+```bash
+python create_icon.py
+```
+
+This creates both `app.ico` and `app.png` files in the `src` directory. The PNG version is used by the application for the system tray icon.
 
 ## Prerequisites
 
 ### Home Assistant
 
 - A working Home Assistant instance
-- A media player entity (example: a Sonos speaker)
+- A media player entity (example: a speaker)
 - Remote or LAN URL reachable from Windows
 
 ### Windows
@@ -63,9 +86,11 @@ HomeAssistantWindowsVolumeSync/
 │       ├── HomeAssistantWindowsVolumeSync.csproj
 │       ├── Program.cs
 │       ├── VolumeWatcherService.cs
+│       ├── SystemTrayService.cs
 │       ├── IHomeAssistantClient.cs
 │       ├── HomeAssistantClient.cs
-│       └── appsettings.json
+│       ├── appsettings.json
+│       └── app.ico
 ├── tests/
 │   └── HomeAssistantWindowsVolumeSync.Tests/
 │       ├── HomeAssistantWindowsVolumeSync.Tests.csproj
@@ -84,18 +109,82 @@ HomeAssistantWindowsVolumeSync/
 
 ## Configuration
 
-Edit `appsettings.json` to configure the Home Assistant webhook URL and target media player:
+The application can be configured through the Settings window (right-click system tray icon → Settings):
+
+- **Home Assistant URL**: Your Home Assistant base URL (e.g., `https://your-home-assistant-url`)
+- **Webhook ID**: The webhook identifier (default: `homeassistant_windows_volume_sync`)
+- **Target Media Player**: Your media player entity ID (e.g., `media_player.speaker`)
+
+Alternatively, you can edit `appsettings.json` directly:
 
 ```json
 {
   "HomeAssistant": {
-    "WebhookUrl": "https://your-home-assistant-url/api/webhook/homeassistant_windows_volume_sync",
-    "TargetMediaPlayer": "media_player.your_sonos_speaker"
+    "WebhookUrl": "https://your-home-assistant-url",
+    "WebhookId": "homeassistant_windows_volume_sync",
+    "TargetMediaPlayer": "media_player.speaker"
   }
 }
 ```
 
-**Note:** The `TargetMediaPlayer` setting makes it easy to configure which media player to control. Simply copy and paste your media player entity ID here.
+**Note:** Changes made through the Settings window are saved automatically and applied immediately.
+
+### Logging Configuration
+
+The service supports comprehensive logging with different log levels and outputs. Logging is configured through `appsettings.json`:
+
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "HomeAssistantWindowsVolumeSync": "Debug",
+      "Microsoft": "Warning",
+      "System.Net.Http.HttpClient": "Warning"
+    },
+    "Console": {
+      "LogLevel": {
+        "Default": "Debug"
+      }
+    },
+    "EventLog": {
+      "SourceName": "HomeAssistant Windows Volume Sync",
+      "LogName": "Application",
+      "LogLevel": {
+        "Default": "Information"
+      }
+    }
+  }
+}
+```
+
+**Log Levels** (from most to least verbose):
+
+- `Trace`: Extremely detailed diagnostic information
+- `Debug`: Detailed information useful for debugging
+- `Information`: General informational messages about application flow
+- `Warning`: Potentially harmful situations or unexpected events
+- `Error`: Error events that might still allow the application to continue
+- `Critical`: Critical failures that require immediate attention
+
+**Log Outputs:**
+
+- **Console**: Logs appear in console window (when running in Debug mode or interactively)
+- **Debug**: Logs appear in debugger output window during development
+- **EventLog**: Logs written to Windows Event Viewer (Application log) when running as a service
+- **Startup Error Log**: Fatal startup errors are written to `startup-error.log` in the application directory
+
+**Recommended Settings:**
+
+- **Production**: Use `Information` level to balance detail with performance
+- **Development**: Use `Debug` or `Trace` level for detailed troubleshooting
+- **Troubleshooting**: Temporarily set to `Debug` or `Trace`, then back to `Information` when resolved
+
+**Viewing Logs:**
+
+- Console logs: Visible when running in Debug mode or via `dotnet run`
+- Event Viewer logs: Open Event Viewer → Windows Logs → Application → Filter by source "HomeAssistant Windows Volume Sync"
+- Startup errors: Check `startup-error.log` file in the application directory if service fails to start
 
 ## Building the Service
 

@@ -57,6 +57,49 @@ HomeAssistantWindowsVolumeSync is a Windows service that synchronizes the Window
 - Use Moq for mocking dependencies
 - Test both success and failure scenarios
 - Use descriptive test names following the pattern: `MethodName_Scenario_ExpectedResult`
+- **ALWAYS create tests for new functionality**
+- **ALWAYS run tests after making changes**
+- Maintain test coverage for all public APIs
+- Test edge cases and error conditions
+
+## Test-Driven Development Requirements
+
+### After Every Implementation:
+
+1. **Write Tests First** (when possible):
+
+   - Write tests before implementing new features
+   - Define expected behavior through tests
+   - Use tests to drive API design
+
+2. **Build and Test Verification** (MANDATORY):
+
+   - Run `dotnet build HomeAssistantWindowsVolumeSync.sln` after changes
+   - Run `dotnet test HomeAssistantWindowsVolumeSync.sln` to verify all tests pass
+   - Fix any compilation errors or test failures immediately
+   - Verify both Debug and Release configurations build successfully
+
+3. **Test Coverage Requirements**:
+
+   - Every new class must have corresponding test file
+   - Every public method should have at least one test
+   - Test success paths and error/exception paths
+   - Use Theory tests for multiple input scenarios
+
+4. **Before Committing**:
+   - Ensure all tests pass (34+ tests currently)
+   - No build warnings or errors
+   - Code follows project conventions
+   - Tests follow naming conventions
+
+### Test File Organization
+
+Each source file should have a corresponding test file:
+
+- `HomeAssistantClient.cs` → `HomeAssistantClientTests.cs`
+- `VolumeWatcherService.cs` → `VolumeWatcherServiceTests.cs`
+- `SystemTrayService.cs` → `SystemTrayServiceTests.cs`
+- Interfaces get contract tests: `IHomeAssistantClient.cs` → `IHomeAssistantClientTests.cs`
 
 ## File Structure
 
@@ -74,6 +117,9 @@ tests/
   HomeAssistantWindowsVolumeSync.Tests/
     HomeAssistantWindowsVolumeSync.Tests.csproj  # Test project
     HomeAssistantClientTests.cs                   # Client tests
+    IHomeAssistantClientTests.cs                  # Interface contract tests
+    VolumeWatcherServiceTests.cs                  # Volume watcher tests
+    SystemTrayServiceTests.cs                     # System tray tests
 
 HomeAssistant/
   automation.yaml                           # HA automation example
@@ -85,24 +131,71 @@ The service uses `appsettings.json` for configuration:
 
 ```json
 {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "HomeAssistantWindowsVolumeSync": "Debug"
+    }
+  },
   "HomeAssistant": {
-    "WebhookUrl": "https://your-ha-url/api/webhook/homeassistant_windows_volume_sync"
+    "WebhookUrl": "https://your-ha-url/api/webhook/homeassistant_windows_volume_sync",
+    "TargetMediaPlayer": "media_player.your_sonos_speaker"
   }
 }
 ```
 
+### Logging Configuration
+
+- Configure log levels in `appsettings.json`
+- Use different levels for Development vs Production
+- Console, Debug, and EventLog providers are available
+- Structured logging with appropriate log levels
+
 ## Building and Running
 
 ```bash
-# Build
-dotnet build src/HomeAssistantWindowsVolumeSync.csproj
+# Build entire solution
+dotnet build HomeAssistantWindowsVolumeSync.sln
 
-# Run tests
-dotnet test tests/HomeAssistantWindowsVolumeSync.Tests.csproj
+# Build in Release mode
+dotnet build HomeAssistantWindowsVolumeSync.sln --configuration Release
+
+# Run all tests
+dotnet test HomeAssistantWindowsVolumeSync.sln
+
+# Run tests with detailed output
+dotnet test HomeAssistantWindowsVolumeSync.sln --verbosity normal
 
 # Publish for production
 dotnet publish src -c Release -r win-x64 --self-contained false -o publish
 ```
+
+## MANDATORY: Build and Test After Changes
+
+**CRITICAL**: After ANY code change, you MUST:
+
+1. **Build the solution**:
+
+   ```bash
+   dotnet build HomeAssistantWindowsVolumeSync.sln
+   ```
+
+2. **Run all tests**:
+
+   ```bash
+   dotnet test HomeAssistantWindowsVolumeSync.sln
+   ```
+
+3. **Verify results**:
+
+   - All tests must pass (34+ tests)
+   - No build errors or warnings
+   - Both Debug and Release configurations work
+
+4. **If tests fail**:
+   - Fix the issue immediately
+   - Don't proceed until all tests pass
+   - Update or add tests as needed
 
 ## Key Implementation Details
 
@@ -132,7 +225,13 @@ The service sends JSON payloads to Home Assistant:
 
 ## When Making Changes
 
-1. Update tests for any new functionality
-2. Keep the Home Assistant automation example in sync with payload format
-3. Document any new configuration options
-4. Follow existing patterns for dependency injection and logging
+1. **Write tests first** (when adding new functionality)
+2. **Implement the feature** following coding conventions
+3. **Build the solution**: `dotnet build HomeAssistantWindowsVolumeSync.sln`
+4. **Run all tests**: `dotnet test HomeAssistantWindowsVolumeSync.sln`
+5. **Fix any failures** before considering the work complete
+6. Update documentation if adding new features or configuration
+7. Keep the Home Assistant automation example in sync with payload format
+8. Follow existing patterns for dependency injection and logging
+
+**Remember**: Code is not complete until it builds without errors and all tests pass!

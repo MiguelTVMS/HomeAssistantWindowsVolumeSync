@@ -56,3 +56,5 @@ nunit-*.xml
 # Local configuration files
 appsettings.Development.json
 appsettings.Local.json
+
+publish/
