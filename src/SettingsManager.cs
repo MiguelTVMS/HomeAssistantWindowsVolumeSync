@@ -11,8 +11,16 @@ public class SettingsManager
     private readonly IAppConfiguration? _appConfiguration;
 
     public SettingsManager(IAppConfiguration? appConfiguration = null)
+        : this(Path.Combine(AppContext.BaseDirectory, "appsettings.json"), appConfiguration)
     {
-        _settingsFilePath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+    }
+
+    /// <summary>
+    /// Constructor for testing purposes
+    /// </summary>
+    internal SettingsManager(string settingsFilePath, IAppConfiguration? appConfiguration = null)
+    {
+        _settingsFilePath = settingsFilePath;
         _appConfiguration = appConfiguration;
     }
 
@@ -21,8 +29,8 @@ public class SettingsManager
     /// </summary>
     public void SaveSettings(string webhookUrl, string webhookId, string targetMediaPlayer)
     {
-        // Read the current settings file
-        var json = File.ReadAllText(_settingsFilePath);
+        // Read the current settings file or create empty object if doesn't exist
+        var json = File.Exists(_settingsFilePath) ? File.ReadAllText(_settingsFilePath) : "{}";
         using var jsonDoc = JsonDocument.Parse(json);
 
         // Create a mutable dictionary from the JSON
@@ -74,7 +82,8 @@ public class SettingsManager
         // Write the updated settings back to the file
         var options = new JsonSerializerOptions
         {
-            WriteIndented = true
+            WriteIndented = true,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         };
 
         var updatedJson = JsonSerializer.Serialize(settings, options);

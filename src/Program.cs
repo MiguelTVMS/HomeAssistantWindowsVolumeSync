@@ -4,6 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("HomeAssistantWindowsVolumeSync.Tests")]
 
 // For debugging: allocate a console window if running as WinExe
 #if DEBUG
