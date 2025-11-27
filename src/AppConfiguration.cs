@@ -77,7 +77,7 @@ public class AppConfiguration : IAppConfiguration
     }
 
     /// <inheritdoc/>
-    public T GetValue<T>(string key, T defaultValue)
+    public T? GetValue<T>(string key, T defaultValue)
     {
         return _configuration.GetValue<T>(key, defaultValue);
     }

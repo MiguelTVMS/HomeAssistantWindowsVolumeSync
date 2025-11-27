@@ -65,5 +65,5 @@ public interface IAppConfiguration
     /// <param name="key">The configuration key.</param>
     /// <param name="defaultValue">The default value if key is not found.</param>
     /// <returns>The configuration value or the default value.</returns>
-    T GetValue<T>(string key, T defaultValue);
+    T? GetValue<T>(string key, T defaultValue);
 }
