@@ -9,10 +9,33 @@ This allows Windows hardware volume keys, app volume sliders, and external volum
 
 - **Event-driven volume detection** - no polling, near-zero CPU usage
 - **Instant sync** - volume changes are sent immediately to Home Assistant
+- **System tray integration** - convenient pause/resume controls from the taskbar
 - **Native Windows Service** - runs in the background, starts automatically
 - **Configurable** - easy webhook endpoint configuration
 - **Universal compatibility** - works with any Home Assistant media player, including Sonos
 - **Modern architecture** - built using .NET 8 Worker Service
+
+## System Tray Icon
+
+The service includes a system tray icon that appears in your Windows taskbar notification area, providing easy control over the volume sync:
+
+- **Right-click** the icon to access the menu:
+  - **Status** - Shows whether the service is running or paused
+  - **Pause/Resume** - Temporarily pause or resume volume synchronization
+  - **Exit** - Stop the service
+- **Double-click** the icon to see a status dialog
+
+When paused, the service continues to monitor Windows volume changes but does not send updates to Home Assistant. This is useful if you want to temporarily control your media player directly from Home Assistant without interference from Windows volume changes.
+
+### Icon Creation
+
+The project includes a Python script (`create_icon.py`) to generate the system tray icon based on the Material Design Icons `home-sound-out` icon:
+
+```bash
+python create_icon.py
+```
+
+This creates both `app.ico` and `app.png` files in the `src` directory. The PNG version is used by the application for the system tray icon.
 
 ## Prerequisites
 
@@ -63,9 +86,11 @@ HomeAssistantWindowsVolumeSync/
 │       ├── HomeAssistantWindowsVolumeSync.csproj
 │       ├── Program.cs
 │       ├── VolumeWatcherService.cs
+│       ├── SystemTrayService.cs
 │       ├── IHomeAssistantClient.cs
 │       ├── HomeAssistantClient.cs
-│       └── appsettings.json
+│       ├── appsettings.json
+│       └── app.ico
 ├── tests/
 │   └── HomeAssistantWindowsVolumeSync.Tests/
 │       ├── HomeAssistantWindowsVolumeSync.Tests.csproj

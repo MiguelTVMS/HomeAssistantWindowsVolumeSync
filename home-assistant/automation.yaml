@@ -4,6 +4,7 @@
 
 alias: Windows Volume Sync
 description: Syncs Windows system volume to a Home Assistant media player
+icon: mdi:home-sound-out
 mode: single
 max_exceeded: silent
 

@@ -6,10 +6,10 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build",
-      "program": "${workspaceFolder}/src/bin/Debug/net8.0/HomeAssistantWindowsVolumeSync.exe",
+      "program": "${workspaceFolder}/src/bin/Debug/net8.0-windows/HomeAssistantWindowsVolumeSync.exe",
       "args": [],
       "cwd": "${workspaceFolder}/src",
-      "console": "internalConsole",
+      "console": "externalTerminal",
       "stopAtEntry": false
     },
     {

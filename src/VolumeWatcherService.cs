@@ -17,6 +17,7 @@ public class VolumeWatcherService : BackgroundService
     private MMDeviceEnumerator? _deviceEnumerator;
     private MMDevice? _defaultDevice;
     private AudioEndpointVolumeNotificationDelegate? _volumeDelegate;
+    private bool _isPaused;
 
     public VolumeWatcherService(
         ILogger<VolumeWatcherService> logger,
@@ -26,6 +27,15 @@ public class VolumeWatcherService : BackgroundService
         _logger = logger;
         _homeAssistantClient = homeAssistantClient;
         _configuration = configuration;
+    }
+
+    /// <summary>
+    /// Sets the pause state of the volume watcher.
+    /// </summary>
+    public void SetPaused(bool isPaused)
+    {
+        _isPaused = isPaused;
+        _logger.LogInformation("Volume watcher {Status}", isPaused ? "paused" : "resumed");
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -72,7 +82,15 @@ public class VolumeWatcherService : BackgroundService
 
     private void OnVolumeNotification(AudioVolumeNotificationData data)
     {
-        _logger.LogDebug("Volume change detected: {Volume}%, Muted: {Muted}", 
+        // Skip processing if paused
+        if (_isPaused)
+        {
+            _logger.LogDebug("Volume change detected but skipped (paused): {Volume}%, Muted: {Muted}",
+                data.MasterVolume * 100, data.Muted);
+            return;
+        }
+
+        _logger.LogDebug("Volume change detected: {Volume}%, Muted: {Muted}",
             data.MasterVolume * 100, data.Muted);
 
         // Fire and forget - we don't want to block the audio callback
@@ -87,7 +105,7 @@ public class VolumeWatcherService : BackgroundService
             var volumePercent = (int)Math.Round(volumeScalar * 100);
 
             await _homeAssistantClient.SendVolumeUpdateAsync(volumePercent, isMuted);
-            
+
             _logger.LogDebug("Volume update sent: {Volume}%, Muted: {Muted}", volumePercent, isMuted);
         }
         catch (Exception ex)
