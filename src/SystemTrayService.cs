@@ -72,30 +72,9 @@ public class SystemTrayService : BackgroundService
                 _logger.LogError(ex, "Error in system tray UI thread");
                 tcs.SetException(ex);
             }
-            finally
-            {
-                // Clean up when the message loop exits, but only if not already disposed
-                if (!_isDisposed)
-                {
-                    try
-                    {
-                        _notifyIcon?.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogDebug(ex, "Error disposing notify icon in finally block");
-                    }
-
-                    try
-                    {
-                        _contextMenu?.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogDebug(ex, "Error disposing context menu in finally block");
-                    }
-                }
-            }
+            // Note: Resource cleanup is handled by the Dispose() method which is called
+            // when the service is stopped. This follows the standard IDisposable pattern
+            // rather than using manual finally-block disposal.
         })
         {
             IsBackground = false,
