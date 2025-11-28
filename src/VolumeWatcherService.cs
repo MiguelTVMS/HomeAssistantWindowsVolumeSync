@@ -95,22 +95,33 @@ public class VolumeWatcherService : BackgroundService
 
     private void OnVolumeNotification(AudioVolumeNotificationData data)
     {
+        HandleVolumeChange(data.MasterVolume, data.Muted);
+    }
+
+    /// <summary>
+    /// Handles a volume change event by debouncing and sending the update to Home Assistant.
+    /// This method is internal to allow testing of the debounce logic.
+    /// </summary>
+    /// <param name="volumeScalar">The volume level as a scalar value (0.0 to 1.0).</param>
+    /// <param name="isMuted">Whether the audio is muted.</param>
+    internal void HandleVolumeChange(float volumeScalar, bool isMuted)
+    {
         // Skip processing if paused
         if (_isPaused)
         {
             _logger.LogDebug("Volume change detected but skipped (paused): {Volume}%, Muted: {Muted}",
-                data.MasterVolume * 100, data.Muted);
+                volumeScalar * 100, isMuted);
             return;
         }
 
         _logger.LogDebug("Volume change detected: {Volume}%, Muted: {Muted}",
-            data.MasterVolume * 100, data.Muted);
+            volumeScalar * 100, isMuted);
 
         // Update the latest volume state and reset the debounce timer
         lock (_debounceLock)
         {
-            _lastVolumeScalar = data.MasterVolume;
-            _lastMuteState = data.Muted;
+            _lastVolumeScalar = volumeScalar;
+            _lastMuteState = isMuted;
 
             // Dispose existing timer if any
             _debounceTimer?.Dispose();
