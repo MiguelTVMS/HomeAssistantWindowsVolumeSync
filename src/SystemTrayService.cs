@@ -72,9 +72,15 @@ public class SystemTrayService : BackgroundService
                 _logger.LogError(ex, "Error in system tray UI thread");
                 tcs.SetException(ex);
             }
-            // Note: Resource cleanup is handled by the Dispose() method which is called
-            // when the service is stopped. This follows the standard IDisposable pattern
-            // rather than using manual finally-block disposal.
+            // Ensure Windows Forms controls are disposed on the UI thread after Application.Run() exits.
+            finally
+            {
+                _notifyIcon?.Dispose();
+                _contextMenu?.Dispose();
+                _pauseResumeMenuItem?.Dispose();
+                _statusMenuItem?.Dispose();
+                _connectionStatusMenuItem?.Dispose();
+            }
         })
         {
             IsBackground = false,
