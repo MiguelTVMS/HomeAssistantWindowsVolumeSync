@@ -85,8 +85,6 @@ public class HealthCheckService : IHealthCheckService, IHostedService, IDisposab
     {
         try
         {
-            // Get current volume from the volume watcher service
-            // We'll send a health check by attempting to send the current volume
             var isHealthy = await _homeAssistantClient.CheckHealthAsync();
 
             lock (_stateLock)
