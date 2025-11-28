@@ -112,19 +112,28 @@ public class VolumeWatcherService : BackgroundService
             _lastVolumeScalar = data.MasterVolume;
             _lastMuteState = data.Muted;
 
-            // Cancel any pending debounce task
-            _debounceCts?.Cancel();
-            _debounceCts?.Dispose();
+            // Cancel and dispose any pending debounce task using local reference
+            var previousCts = _debounceCts;
+            previousCts?.Cancel();
+            previousCts?.Dispose();
+            
             _debounceCts = new CancellationTokenSource();
             var token = _debounceCts.Token;
             var waitTime = _configuration.DebounceTimer;
 
-            // Start a new debounce task
+            // Start a new debounce task with exception handling
             _ = Task.Delay(waitTime, token).ContinueWith(t =>
             {
                 if (!t.IsCanceled)
                 {
-                    SendDebouncedVolumeUpdate();
+                    try
+                    {
+                        SendDebouncedVolumeUpdate();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error in debounced volume update");
+                    }
                 }
             }, TaskScheduler.Default);
         }
