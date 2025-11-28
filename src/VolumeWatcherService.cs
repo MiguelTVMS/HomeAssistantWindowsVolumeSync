@@ -17,7 +17,7 @@ public class VolumeWatcherService : BackgroundService
     private MMDevice? _defaultDevice;
     private AudioEndpointVolumeNotificationDelegate? _volumeDelegate;
     private volatile bool _isPaused;
-    private System.Threading.Timer? _debounceTimer;
+    private CancellationTokenSource? _debounceCts;
     private float _lastVolumeScalar;
     private bool _lastMuteState;
     private readonly object _debounceLock = new object();
@@ -106,22 +106,27 @@ public class VolumeWatcherService : BackgroundService
         _logger.LogDebug("Volume change detected: {Volume}%, Muted: {Muted}",
             data.MasterVolume * 100, data.Muted);
 
-        // Update the latest volume state and reset the debounce timer
+        // Update the latest volume state and reset the debounce
         lock (_debounceLock)
         {
             _lastVolumeScalar = data.MasterVolume;
             _lastMuteState = data.Muted;
 
-            // Dispose existing timer if any
-            _debounceTimer?.Dispose();
-
-            // Create new timer that will fire after the configured wait period
+            // Cancel any pending debounce task
+            _debounceCts?.Cancel();
+            _debounceCts?.Dispose();
+            _debounceCts = new CancellationTokenSource();
+            var token = _debounceCts.Token;
             var waitTime = _configuration.DebounceTimer;
-            _debounceTimer = new System.Threading.Timer(
-                _ => SendDebouncedVolumeUpdate(),
-                null,
-                waitTime,
-                Timeout.Infinite);
+
+            // Start a new debounce task
+            _ = Task.Delay(waitTime, token).ContinueWith(t =>
+            {
+                if (!t.IsCanceled)
+                {
+                    SendDebouncedVolumeUpdate();
+                }
+            }, TaskScheduler.Default);
         }
     }
 
@@ -164,7 +169,8 @@ public class VolumeWatcherService : BackgroundService
             _defaultDevice.AudioEndpointVolume.OnVolumeNotification -= _volumeDelegate;
         }
 
-        _debounceTimer?.Dispose();
+        _debounceCts?.Cancel();
+        _debounceCts?.Dispose();
         _defaultDevice?.Dispose();
         _deviceEnumerator?.Dispose();
 
