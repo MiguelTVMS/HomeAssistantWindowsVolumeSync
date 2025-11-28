@@ -561,15 +561,16 @@ public class HomeAssistantClientTests
                 ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(new HttpResponseMessage(statusCode));
 
-        var httpClient = new HttpClient(handlerMock.Object);
-        var client = new HomeAssistantClient(httpClient, _loggerMock.Object, _configuration);
+        using (var httpClient = new HttpClient(handlerMock.Object))
+        {
+            var client = new HomeAssistantClient(httpClient, _loggerMock.Object, _configuration);
 
-        // Act
-        var result = await client.CheckHealthAsync();
+            // Act
+            var result = await client.CheckHealthAsync();
 
-        // Assert
-        Assert.False(result);
-    }
+            // Assert
+            Assert.False(result);
+        }
 
     [Fact]
     public async Task CheckHealthAsync_WhenNetworkError_ReturnsFalse()
