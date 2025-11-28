@@ -63,7 +63,7 @@ You must create a Home Assistant automation that responds to a webhook and sets 
    - Read the JSON body `{ "volume": <number>, "mute": <boolean>, "target_media_player": <string> }`
    - Convert volume to 0.0–1.0 (the number is 0–100)
    - Use the `target_media_player` from the payload (or default to your media player)
-   - Call `media_player.volume_set`
+   - Call `media_player.your_media_player`
 
 After creating the automation, your webhook URL becomes:
 
@@ -117,7 +117,7 @@ The application provides two ways to configure settings:
 |---------|:---------------:|:----------------:|-------------|
 | **Home Assistant URL** | ✓ | ✓ | Your Home Assistant base URL (e.g., `https://your-home-assistant-url`) |
 | **Webhook ID** | ✓ | ✓ | The webhook identifier (default: `homeassistant_windows_volume_sync`) |
-| **Target Media Player** | ✓ | ✓ | Your media player entity ID (e.g., `media_player.speaker`) |
+| **Target Media Player** | ✓ | ✓ | Your media player entity ID (e.g., `media_player.your_media_player`) |
 | **Run on Startup** | ✓ | | Enable/disable automatic startup with Windows |
 | **Webhook Path** | | ✓ | API webhook path (default: `/api/webhook/`) |
 | **Strict TLS** | | ✓ | Enable/disable strict TLS certificate validation (default: `true`) |
@@ -147,7 +147,7 @@ The application provides two ways to configure settings:
     "WebhookUrl": "https://your-home-assistant-url",
     "WebhookPath": "/api/webhook/",
     "WebhookId": "homeassistant_windows_volume_sync",
-    "TargetMediaPlayer": "media_player.speaker",
+    "TargetMediaPlayer": "media_player.your_media_player",
     "StrictTLS": true,
     "DebounceTimer": 100,
     "HealthCheckTimer": 5000,

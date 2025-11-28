@@ -139,7 +139,7 @@ The service uses `appsettings.json` for configuration:
   },
   "HomeAssistant": {
     "WebhookUrl": "https://your-ha-url/api/webhook/homeassistant_windows_volume_sync",
-    "TargetMediaPlayer": "media_player.your_sonos_speaker",
+    "TargetMediaPlayer": "media_player.your_media_player",
     "DebounceTimer": 100,
     "HealthCheckTimer": 5000,
     "HealthCheckRetries": 3
