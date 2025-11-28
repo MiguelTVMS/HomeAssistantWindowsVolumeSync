@@ -242,32 +242,6 @@ public class SystemTrayServiceTests
     }
 
     [Fact]
-    public void Dispose_ShouldUnsubscribeFromHealthCheckEvents()
-    {
-        // Arrange
-        var mockHealthCheckService = new Mock<IHealthCheckService>();
-        mockHealthCheckService.Setup(h => h.IsConnected).Returns(true);
-
-        _mockServiceProvider
-            .Setup(sp => sp.GetService(typeof(IHealthCheckService)))
-            .Returns(mockHealthCheckService.Object);
-
-        var service = new SystemTrayService(
-            _mockLogger.Object,
-            _mockLifetime.Object,
-            _mockServiceProvider.Object,
-            _mockConfiguration.Object);
-
-        // Act
-        service.Dispose();
-
-        // Assert - Verify event handler was removed
-        // Note: We can't easily verify unsubscription without starting the service
-        // This test mainly ensures Dispose doesn't throw when health check service is null
-        Assert.True(true);
-    }
-
-    [Fact]
     public void UpdateConnectionStatus_ShouldInvoke_WithConnectedState()
     {
         // Arrange
