@@ -72,29 +72,14 @@ public class SystemTrayService : BackgroundService
                 _logger.LogError(ex, "Error in system tray UI thread");
                 tcs.SetException(ex);
             }
+            // Ensure Windows Forms controls are disposed on the UI thread after Application.Run() exits.
             finally
             {
-                // Clean up when the message loop exits, but only if not already disposed
-                if (!_isDisposed)
-                {
-                    try
-                    {
-                        _notifyIcon?.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogDebug(ex, "Error disposing notify icon in finally block");
-                    }
-
-                    try
-                    {
-                        _contextMenu?.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogDebug(ex, "Error disposing context menu in finally block");
-                    }
-                }
+                _notifyIcon?.Dispose();
+                _contextMenu?.Dispose();
+                _pauseResumeMenuItem?.Dispose();
+                _statusMenuItem?.Dispose();
+                _connectionStatusMenuItem?.Dispose();
             }
         })
         {
