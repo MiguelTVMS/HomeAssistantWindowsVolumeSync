@@ -312,7 +312,7 @@ public class HomeAssistantClientTests
 
         ; //
 
-        var httpClient = new HttpClient();
+        using var httpClient = new HttpClient();
 
         // Act
         var client = new HomeAssistantClient(httpClient, _loggerMock.Object, emptyConfig);
@@ -337,7 +337,7 @@ public class HomeAssistantClientTests
                 { "HomeAssistant:WebhookUrl", TestWebhookUrl }
             });
 
-        var httpClient = new HttpClient();
+        using var httpClient = new HttpClient();
 
         // Act
         var client = new HomeAssistantClient(httpClient, _loggerMock.Object, configWithoutPlayer);
@@ -363,7 +363,7 @@ public class HomeAssistantClientTests
                 { "HomeAssistant:TargetMediaPlayer", "media_player.test" }
             });
 
-        var httpClient = new HttpClient();
+        using var httpClient = new HttpClient();
 
         // Act
         var client = new HomeAssistantClient(httpClient, _loggerMock.Object, httpConfig);
@@ -390,7 +390,7 @@ public class HomeAssistantClientTests
                 { "HomeAssistant:StrictTLS", "false" }
             });
 
-        var httpClient = new HttpClient();
+        using var httpClient = new HttpClient();
 
         // Act
         var client = new HomeAssistantClient(httpClient, _loggerMock.Object, httpsConfigNoStrictTls);
@@ -417,7 +417,7 @@ public class HomeAssistantClientTests
                 { "HomeAssistant:StrictTLS", "true" }
             });
 
-        var httpClient = new HttpClient();
+        using var httpClient = new HttpClient();
 
         // Act
         var client = new HomeAssistantClient(httpClient, _loggerMock.Object, httpsConfigStrictTls);
@@ -444,7 +444,7 @@ public class HomeAssistantClientTests
                 // StrictTLS not specified, should default to true
             });
 
-        var httpClient = new HttpClient();
+        using var httpClient = new HttpClient();
 
         // Act
         var client = new HomeAssistantClient(httpClient, _loggerMock.Object, httpsConfigDefaultStrictTls);
