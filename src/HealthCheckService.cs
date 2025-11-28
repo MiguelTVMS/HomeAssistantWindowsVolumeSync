@@ -64,7 +64,7 @@ public class HealthCheckService : IHealthCheckService, IHostedService, IDisposab
         // Start periodic health checks
         var interval = _configuration.HealthCheckTimer;
         _healthCheckTimer = new System.Threading.Timer(
-            async _ => await CheckHealthAsync(),
+            _ => _ = Task.Run(async () => await CheckHealthAsync()),
             null,
             interval,
             interval);
