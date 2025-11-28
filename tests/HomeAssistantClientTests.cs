@@ -571,6 +571,7 @@ public class HomeAssistantClientTests
             // Assert
             Assert.False(result);
         }
+    }
 
     [Fact]
     public async Task CheckHealthAsync_WhenNetworkError_ReturnsFalse()
