@@ -103,15 +103,37 @@ public class SettingsManager
         {
             _logger?.LogInformation("Reloading configuration...");
 
-            // Delay to ensure file write is complete and file watcher has time to detect the change
-            Thread.Sleep(200);
+            // Wait for configuration to reload with new values (retry up to 2 seconds)
             _appConfiguration.Reload();
 
-            // Additional delay to allow configuration to fully reload
-            Thread.Sleep(200);
+            const int maxAttempts = 20;
+            const int delayMs = 100;
+            int attempt = 0;
+            bool configUpdated = false;
+            while (attempt < maxAttempts)
+            {
+                if (string.Equals(_appConfiguration.WebhookUrl, webhookUrl, StringComparison.Ordinal) &&
+                    string.Equals(_appConfiguration.WebhookId, webhookId, StringComparison.Ordinal) &&
+                    string.Equals(_appConfiguration.TargetMediaPlayer, targetMediaPlayer, StringComparison.Ordinal))
+                {
+                    configUpdated = true;
+                    break;
+                }
+                attempt++;
+                System.Threading.Tasks.Task.Delay(delayMs).Wait();
+                _appConfiguration.Reload();
+            }
 
-            _logger?.LogInformation("Configuration reloaded. New values - WebhookUrl: {Url}, WebhookId: {Id}, TargetMediaPlayer: {Player}",
-                _appConfiguration.WebhookUrl, _appConfiguration.WebhookId, _appConfiguration.TargetMediaPlayer);
+            if (configUpdated)
+            {
+                _logger?.LogInformation("Configuration reloaded. New values - WebhookUrl: {Url}, WebhookId: {Id}, TargetMediaPlayer: {Player}",
+                    _appConfiguration.WebhookUrl, _appConfiguration.WebhookId, _appConfiguration.TargetMediaPlayer);
+            }
+            else
+            {
+                _logger?.LogWarning("Configuration reload timed out. Values may not be updated yet. WebhookUrl: {Url}, WebhookId: {Id}, TargetMediaPlayer: {Player}",
+                    _appConfiguration.WebhookUrl, _appConfiguration.WebhookId, _appConfiguration.TargetMediaPlayer);
+            }
         }
         else
         {
