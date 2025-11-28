@@ -49,6 +49,26 @@
       "stopAtEntry": false
     },
     {
+      "name": ".NET Core Watch (Hot Reload)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "watch",
+      "program": "${workspaceFolder}/src/bin/Debug/net8.0-windows/HomeAssistantWindowsVolumeSync.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}/src",
+      "console": "externalTerminal",
+      "stopAtEntry": false,
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTNET_ENVIRONMENT": "Development",
+        "DOTNET_WATCH": "1"
+      },
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+      }
+    },
+    {
       "name": ".NET Core Attach",
       "type": "coreclr",
       "request": "attach"

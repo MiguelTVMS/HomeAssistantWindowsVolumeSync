@@ -115,6 +115,193 @@ public class AppConfigurationTests
     }
 
     [Fact]
+    public void DebounceTimer_DefaultsTo100_WhenNotConfigured()
+    {
+        // Arrange
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>())
+            .Build();
+
+        var appConfig = new AppConfiguration(configuration);
+
+        // Act
+        var debounceTimer = appConfig.DebounceTimer;
+
+        // Assert
+        Assert.Equal(100, debounceTimer);
+    }
+
+    [Fact]
+    public void DebounceTimer_ReturnsConfiguredValue()
+    {
+        // Arrange
+        var configData = new Dictionary<string, string?>
+        {
+            { "HomeAssistant:DebounceTimer", "250" }
+        };
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        var appConfig = new AppConfiguration(configuration);
+
+        // Act
+        var debounceTimer = appConfig.DebounceTimer;
+
+        // Assert
+        Assert.Equal(250, debounceTimer);
+    }
+
+    [Theory]
+    [InlineData("50", 50)]
+    [InlineData("0", 0)]
+    [InlineData("1000", 1000)]
+    public void DebounceTimer_ReturnsCorrectValue_ForVariousInputs(string configValue, int expectedValue)
+    {
+        // Arrange
+        var configData = new Dictionary<string, string?>
+        {
+            { "HomeAssistant:DebounceTimer", configValue }
+        };
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        var appConfig = new AppConfiguration(configuration);
+
+        // Act
+        var debounceTimer = appConfig.DebounceTimer;
+
+        // Assert
+        Assert.Equal(expectedValue, debounceTimer);
+    }
+
+    [Fact]
+    public void HealthCheckTimer_DefaultsTo5000_WhenNotConfigured()
+    {
+        // Arrange
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>())
+            .Build();
+
+        var appConfig = new AppConfiguration(configuration);
+
+        // Act
+        var healthCheckTimer = appConfig.HealthCheckTimer;
+
+        // Assert
+        Assert.Equal(5000, healthCheckTimer);
+    }
+
+    [Fact]
+    public void HealthCheckTimer_ReturnsConfiguredValue()
+    {
+        // Arrange
+        var configData = new Dictionary<string, string?>
+        {
+            { "HomeAssistant:HealthCheckTimer", "10000" }
+        };
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        var appConfig = new AppConfiguration(configuration);
+
+        // Act
+        var healthCheckTimer = appConfig.HealthCheckTimer;
+
+        // Assert
+        Assert.Equal(10000, healthCheckTimer);
+    }
+
+    [Theory]
+    [InlineData("1000", 1000)]
+    [InlineData("5000", 5000)]
+    [InlineData("10000", 10000)]
+    public void HealthCheckTimer_ReturnsCorrectValue_ForVariousInputs(string configValue, int expectedValue)
+    {
+        // Arrange
+        var configData = new Dictionary<string, string?>
+        {
+            { "HomeAssistant:HealthCheckTimer", configValue }
+        };
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        var appConfig = new AppConfiguration(configuration);
+
+        // Act
+        var healthCheckTimer = appConfig.HealthCheckTimer;
+
+        // Assert
+        Assert.Equal(expectedValue, healthCheckTimer);
+    }
+
+    [Fact]
+    public void HealthCheckRetries_DefaultsTo3_WhenNotConfigured()
+    {
+        // Arrange
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>())
+            .Build();
+
+        var appConfig = new AppConfiguration(configuration);
+
+        // Act
+        var healthCheckRetries = appConfig.HealthCheckRetries;
+
+        // Assert
+        Assert.Equal(3, healthCheckRetries);
+    }
+
+    [Fact]
+    public void HealthCheckRetries_ReturnsConfiguredValue()
+    {
+        // Arrange
+        var configData = new Dictionary<string, string?>
+        {
+            { "HomeAssistant:HealthCheckRetries", "5" }
+        };
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        var appConfig = new AppConfiguration(configuration);
+
+        // Act
+        var healthCheckRetries = appConfig.HealthCheckRetries;
+
+        // Assert
+        Assert.Equal(5, healthCheckRetries);
+    }
+
+    [Theory]
+    [InlineData("1", 1)]
+    [InlineData("3", 3)]
+    [InlineData("5", 5)]
+    [InlineData("10", 10)]
+    public void HealthCheckRetries_ReturnsCorrectValue_ForVariousInputs(string configValue, int expectedValue)
+    {
+        // Arrange
+        var configData = new Dictionary<string, string?>
+        {
+            { "HomeAssistant:HealthCheckRetries", configValue }
+        };
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        var appConfig = new AppConfiguration(configuration);
+
+        // Act
+        var healthCheckRetries = appConfig.HealthCheckRetries;
+
+        // Assert
+        Assert.Equal(expectedValue, healthCheckRetries);
+    }
+
+    [Fact]
     public void GetValue_ReturnsConfiguredValue()
     {
         // Arrange

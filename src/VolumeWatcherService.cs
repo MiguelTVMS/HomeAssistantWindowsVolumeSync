@@ -12,17 +12,24 @@ public class VolumeWatcherService : BackgroundService
 {
     private readonly ILogger<VolumeWatcherService> _logger;
     private readonly IHomeAssistantClient _homeAssistantClient;
+    private readonly IAppConfiguration _configuration;
     private MMDeviceEnumerator? _deviceEnumerator;
     private MMDevice? _defaultDevice;
     private AudioEndpointVolumeNotificationDelegate? _volumeDelegate;
     private volatile bool _isPaused;
+    private System.Threading.Timer? _debounceTimer;
+    private float _lastVolumeScalar;
+    private bool _lastMuteState;
+    private readonly object _debounceLock = new object();
 
     public VolumeWatcherService(
         ILogger<VolumeWatcherService> logger,
-        IHomeAssistantClient homeAssistantClient)
+        IHomeAssistantClient homeAssistantClient,
+        IAppConfiguration configuration)
     {
         _logger = logger;
         _homeAssistantClient = homeAssistantClient;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -99,8 +106,38 @@ public class VolumeWatcherService : BackgroundService
         _logger.LogDebug("Volume change detected: {Volume}%, Muted: {Muted}",
             data.MasterVolume * 100, data.Muted);
 
-        // Fire and forget - we don't want to block the audio callback
-        _ = SendVolumeUpdateAsync(data.MasterVolume, data.Muted);
+        // Update the latest volume state and reset the debounce timer
+        lock (_debounceLock)
+        {
+            _lastVolumeScalar = data.MasterVolume;
+            _lastMuteState = data.Muted;
+
+            // Dispose existing timer if any
+            _debounceTimer?.Dispose();
+
+            // Create new timer that will fire after the configured wait period
+            var waitTime = _configuration.DebounceTimer;
+            _debounceTimer = new System.Threading.Timer(
+                _ => SendDebouncedVolumeUpdate(),
+                null,
+                waitTime,
+                Timeout.Infinite);
+        }
+    }
+
+    private void SendDebouncedVolumeUpdate()
+    {
+        float volumeScalar;
+        bool isMuted;
+
+        lock (_debounceLock)
+        {
+            volumeScalar = _lastVolumeScalar;
+            isMuted = _lastMuteState;
+        }
+
+        // Fire and forget - we don't want to block
+        _ = SendVolumeUpdateAsync(volumeScalar, isMuted);
     }
 
     private async Task SendVolumeUpdateAsync(float volumeScalar, bool isMuted)
@@ -127,6 +164,7 @@ public class VolumeWatcherService : BackgroundService
             _defaultDevice.AudioEndpointVolume.OnVolumeNotification -= _volumeDelegate;
         }
 
+        _debounceTimer?.Dispose();
         _defaultDevice?.Dispose();
         _deviceEnumerator?.Dispose();
 

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace HomeAssistantWindowsVolumeSync;
 
@@ -9,19 +10,21 @@ public class SettingsManager
 {
     private readonly string _settingsFilePath;
     private readonly IAppConfiguration? _appConfiguration;
+    private readonly ILogger<SettingsManager>? _logger;
 
-    public SettingsManager(IAppConfiguration? appConfiguration = null)
-        : this(Path.Combine(AppContext.BaseDirectory, "appsettings.json"), appConfiguration)
+    public SettingsManager(IAppConfiguration? appConfiguration = null, ILogger<SettingsManager>? logger = null)
+        : this(Path.Combine(AppContext.BaseDirectory, "appsettings.json"), appConfiguration, logger)
     {
     }
 
     /// <summary>
     /// Constructor for testing purposes
     /// </summary>
-    internal SettingsManager(string settingsFilePath, IAppConfiguration? appConfiguration = null)
+    internal SettingsManager(string settingsFilePath, IAppConfiguration? appConfiguration = null, ILogger<SettingsManager>? logger = null)
     {
         _settingsFilePath = settingsFilePath;
         _appConfiguration = appConfiguration;
+        _logger = logger;
     }
 
     /// <summary>
@@ -29,6 +32,10 @@ public class SettingsManager
     /// </summary>
     public void SaveSettings(string webhookUrl, string webhookId, string targetMediaPlayer)
     {
+        _logger?.LogInformation("Saving settings to {FilePath}", _settingsFilePath);
+        _logger?.LogDebug("New settings - WebhookUrl: {Url}, WebhookId: {Id}, TargetMediaPlayer: {Player}",
+            webhookUrl, webhookId, targetMediaPlayer);
+
         // Read the current settings file or create empty object if doesn't exist
         var json = File.Exists(_settingsFilePath) ? File.ReadAllText(_settingsFilePath) : "{}";
         using var jsonDoc = JsonDocument.Parse(json);
@@ -89,12 +96,26 @@ public class SettingsManager
         var updatedJson = JsonSerializer.Serialize(settings, options);
         File.WriteAllText(_settingsFilePath, updatedJson);
 
+        _logger?.LogInformation("Settings file written successfully");
+
         // Reload configuration to apply changes immediately
         if (_appConfiguration != null)
         {
-            // Small delay to ensure file write is complete
-            Thread.Sleep(100);
+            _logger?.LogInformation("Reloading configuration...");
+
+            // Delay to ensure file write is complete and file watcher has time to detect the change
+            Thread.Sleep(200);
             _appConfiguration.Reload();
+
+            // Additional delay to allow configuration to fully reload
+            Thread.Sleep(200);
+
+            _logger?.LogInformation("Configuration reloaded. New values - WebhookUrl: {Url}, WebhookId: {Id}, TargetMediaPlayer: {Player}",
+                _appConfiguration.WebhookUrl, _appConfiguration.WebhookId, _appConfiguration.TargetMediaPlayer);
+        }
+        else
+        {
+            _logger?.LogWarning("No app configuration provided, settings will not be reloaded automatically");
         }
     }
 }

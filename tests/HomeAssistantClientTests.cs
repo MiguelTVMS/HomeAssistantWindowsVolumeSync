@@ -493,5 +493,126 @@ public class HomeAssistantClientTests
         // Assert
         Assert.Equal("http://test-ha.local/api/webhook/test_webhook", capturedUrl);
     }
+
+    [Fact]
+    public async Task CheckHealthAsync_WhenSuccessful_ReturnsTrue()
+    {
+        // Arrange
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(req => req.Method == HttpMethod.Get),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+
+        var httpClient = new HttpClient(handlerMock.Object);
+        var client = new HomeAssistantClient(httpClient, _loggerMock.Object, _configuration);
+
+        // Act
+        var result = await client.CheckHealthAsync();
+
+        // Assert
+        Assert.True(result);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.OK)]
+    [InlineData(HttpStatusCode.Created)]
+    [InlineData(HttpStatusCode.Accepted)]
+    [InlineData(HttpStatusCode.NoContent)]
+    public async Task CheckHealthAsync_With2xxStatusCodes_ReturnsTrue(HttpStatusCode statusCode)
+    {
+        // Arrange
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(statusCode));
+
+        var httpClient = new HttpClient(handlerMock.Object);
+        var client = new HomeAssistantClient(httpClient, _loggerMock.Object, _configuration);
+
+        // Act
+        var result = await client.CheckHealthAsync();
+
+        // Assert
+        Assert.True(result);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.BadRequest)]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.NotFound)]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    [InlineData(HttpStatusCode.BadGateway)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    public async Task CheckHealthAsync_WithNon2xxStatusCodes_ReturnsFalse(HttpStatusCode statusCode)
+    {
+        // Arrange
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(statusCode));
+
+        var httpClient = new HttpClient(handlerMock.Object);
+        var client = new HomeAssistantClient(httpClient, _loggerMock.Object, _configuration);
+
+        // Act
+        var result = await client.CheckHealthAsync();
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task CheckHealthAsync_WhenNetworkError_ReturnsFalse()
+    {
+        // Arrange
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ThrowsAsync(new HttpRequestException("Network error"));
+
+        var httpClient = new HttpClient(handlerMock.Object);
+        var client = new HomeAssistantClient(httpClient, _loggerMock.Object, _configuration);
+
+        // Act
+        var result = await client.CheckHealthAsync();
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task CheckHealthAsync_WhenTimeout_ReturnsFalse()
+    {
+        // Arrange
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ThrowsAsync(new TaskCanceledException("Request timeout"));
+
+        var httpClient = new HttpClient(handlerMock.Object);
+        var client = new HomeAssistantClient(httpClient, _loggerMock.Object, _configuration);
+
+        // Act
+        var result = await client.CheckHealthAsync();
+
+        // Assert
+        Assert.False(result);
+    }
 }
 

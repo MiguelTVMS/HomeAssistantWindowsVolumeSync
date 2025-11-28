@@ -103,6 +103,51 @@ public class HomeAssistantClient : IHomeAssistantClient
         }
     }
 
+    /// <inheritdoc/>
+    public async Task<bool> CheckHealthAsync()
+    {
+        if (string.IsNullOrEmpty(_webhookUrl))
+        {
+            _logger.LogDebug("Cannot check health: Webhook URL is not configured");
+            return false;
+        }
+
+        try
+        {
+            // Send a minimal request to check if Home Assistant is reachable
+            // We use a HEAD request or a simple GET to avoid triggering automations
+            var response = await _httpClient.GetAsync(_configuration.WebhookUrl, HttpCompletionOption.ResponseHeadersRead);
+
+            // Only 2XX status codes indicate a healthy connection
+            // 4XX/5XX errors mean something is wrong with the server or configuration
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogDebug("Health check successful: Status {StatusCode}", response.StatusCode);
+                return true;
+            }
+            else
+            {
+                _logger.LogWarning("Health check failed: Status {StatusCode}", response.StatusCode);
+                return false;
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogDebug(ex, "Health check failed: HTTP request error");
+            return false;
+        }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogDebug(ex, "Health check failed: Request timed out");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Health check failed: Unexpected error");
+            return false;
+        }
+    }
+
     /// <summary>
     /// Payload sent to the Home Assistant webhook.
     /// </summary>

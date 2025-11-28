@@ -15,11 +15,14 @@ public class SystemTrayService : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private readonly IAppConfiguration _configuration;
     private VolumeWatcherService? _volumeWatcherService;
+    private IHealthCheckService? _healthCheckService;
     private NotifyIcon? _notifyIcon;
     private ContextMenuStrip? _contextMenu;
     private ToolStripMenuItem? _pauseResumeMenuItem;
     private ToolStripMenuItem? _statusMenuItem;
+    private ToolStripMenuItem? _connectionStatusMenuItem;
     private bool _isPaused;
+    private bool _isDisposed;
 
     public SystemTrayService(
         ILogger<SystemTrayService> logger,
@@ -43,6 +46,11 @@ public class SystemTrayService : BackgroundService
         _volumeWatcherService = _serviceProvider.GetRequiredService<VolumeWatcherService>();
         _logger.LogInformation("VolumeWatcherService resolved successfully");
 
+        // Resolve HealthCheckService from the service provider
+        _healthCheckService = _serviceProvider.GetRequiredService<IHealthCheckService>();
+        _healthCheckService.ConnectionStateChanged += OnConnectionStateChanged;
+        _logger.LogInformation("HealthCheckService resolved successfully");
+
         // Initialize the system tray icon on the UI thread
         var tcs = new TaskCompletionSource();
         var thread = new Thread(() =>
@@ -50,6 +58,10 @@ public class SystemTrayService : BackgroundService
             try
             {
                 InitializeTrayIcon();
+
+                // Set initial connection status after tray icon is initialized
+                UpdateConnectionStatus(_healthCheckService.IsConnected);
+
                 tcs.SetResult();
 
                 // Run the message loop
@@ -62,9 +74,27 @@ public class SystemTrayService : BackgroundService
             }
             finally
             {
-                // Clean up when the message loop exits
-                _notifyIcon?.Dispose();
-                _contextMenu?.Dispose();
+                // Clean up when the message loop exits, but only if not already disposed
+                if (!_isDisposed)
+                {
+                    try
+                    {
+                        _notifyIcon?.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(ex, "Error disposing notify icon in finally block");
+                    }
+
+                    try
+                    {
+                        _contextMenu?.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(ex, "Error disposing context menu in finally block");
+                    }
+                }
             }
         })
         {
@@ -84,12 +114,13 @@ public class SystemTrayService : BackgroundService
             _logger.LogInformation("SystemTrayService is stopping...");
             try
             {
-                // Exit the application message loop
-                Application.ExitThread();
+                // Exit the application message loop to unblock the UI thread
+                _logger.LogDebug("Calling Application.Exit() to stop message loop");
+                Application.Exit();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error stopping system tray");
+                _logger.LogError(ex, "Error stopping system tray message loop");
             }
         });
 
@@ -101,6 +132,7 @@ public class SystemTrayService : BackgroundService
         catch (OperationCanceledException)
         {
             // Expected when stopping
+            _logger.LogInformation("SystemTrayService cancellation requested");
         }
     }
 
@@ -115,6 +147,13 @@ public class SystemTrayService : BackgroundService
             Enabled = false
         };
         _contextMenu.Items.Add(_statusMenuItem);
+
+        // Connection status menu item (disabled, shows connection state)
+        _connectionStatusMenuItem = new ToolStripMenuItem("Connection: Checking...")
+        {
+            Enabled = false
+        };
+        _contextMenu.Items.Add(_connectionStatusMenuItem);
 
         _contextMenu.Items.Add(new ToolStripSeparator());
 
@@ -195,12 +234,7 @@ public class SystemTrayService : BackgroundService
         // Double-click to show status
         _notifyIcon.DoubleClick += (s, e) =>
         {
-            var status = _isPaused ? "Paused" : "Running";
-            MessageBox.Show(
-                $"Home Assistant Windows Volume Sync\n\nStatus: {status}",
-                "Volume Sync Status",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
+            ShowStatusDialog();
         };
 
         _logger.LogInformation("System tray icon initialized successfully");
@@ -236,13 +270,95 @@ public class SystemTrayService : BackgroundService
         _logger.LogInformation("Volume sync {Status}", _isPaused ? "paused" : "resumed");
     }
 
+    private void ShowStatusDialog()
+    {
+        var status = _isPaused ? "Paused" : "Running";
+        var connectionStatus = _healthCheckService?.IsConnected == true ? "Connected" : "Error";
+
+        // Create a custom dialog with Windows standard layout
+        using var statusDialog = new Form
+        {
+            Text = "Volume Sync Status",
+            ClientSize = new System.Drawing.Size(400, 150),
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            StartPosition = FormStartPosition.CenterScreen,
+            MaximizeBox = false,
+            MinimizeBox = false,
+            Padding = new Padding(12) // Standard Windows dialog padding
+        };
+
+        // Add icon (standard Windows layout)
+        var iconPictureBox = new PictureBox
+        {
+            Image = SystemIcons.Information.ToBitmap(),
+            SizeMode = PictureBoxSizeMode.AutoSize,
+            Location = new System.Drawing.Point(12, 12)
+        };
+        statusDialog.Controls.Add(iconPictureBox);
+
+        // Add status label with proper spacing from icon
+        var statusLabel = new Label
+        {
+            Text = $"Home Assistant Windows Volume Sync\n\nStatus: {status}\nConnection: {connectionStatus}",
+            Left = iconPictureBox.Right + 12,
+            Top = 12,
+            AutoSize = true
+        };
+        statusDialog.Controls.Add(statusLabel);
+
+        // Create button panel at bottom with standard Windows layout
+        var buttonPanel = new FlowLayoutPanel
+        {
+            FlowDirection = FlowDirection.RightToLeft,
+            Dock = DockStyle.Bottom,
+            Height = 40,
+            Padding = new Padding(0, 7, 0, 0), // Standard button panel padding
+            AutoSize = true,
+            WrapContents = false
+        };
+        statusDialog.Controls.Add(buttonPanel);
+
+        // Add Close button (rightmost, standard Windows size)
+        var closeButton = new Button
+        {
+            Text = "Close",
+            DialogResult = DialogResult.OK,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new System.Drawing.Size(75, 23),
+            Margin = new Padding(0, 0, 0, 0)
+        };
+        buttonPanel.Controls.Add(closeButton);
+
+        // Add Settings button (standard Windows size, 6px gap)
+        var settingsButton = new Button
+        {
+            Text = "Settings",
+            DialogResult = DialogResult.Yes,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new System.Drawing.Size(75, 23),
+            Margin = new Padding(0, 0, 6, 0)
+        };
+        buttonPanel.Controls.Add(settingsButton);
+
+        // Show dialog and handle result
+        var result = statusDialog.ShowDialog();
+        if (result == DialogResult.Yes)
+        {
+            // User clicked Settings, open settings dialog
+            OnSettingsClick(null, EventArgs.Empty);
+        }
+    }
+
     private void OnSettingsClick(object? sender, EventArgs e)
     {
         _logger.LogInformation("Settings requested from system tray");
 
         try
         {
-            var settingsManager = new SettingsManager(_configuration);
+            var settingsManagerLogger = _serviceProvider.GetRequiredService<ILogger<SettingsManager>>();
+            var settingsManager = new SettingsManager(_configuration, settingsManagerLogger);
             using var settingsForm = new SettingsForm(
                 _configuration,
                 (url, id, player) => settingsManager.SaveSettings(url, id, player));
@@ -268,18 +384,187 @@ public class SystemTrayService : BackgroundService
     private void OnExitClick(object? sender, EventArgs e)
     {
         _logger.LogInformation("Exit requested from system tray");
+
+        // Exit the application message loop first
+        try
+        {
+            _logger.LogInformation("Exiting application message loop");
+            Application.Exit();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error exiting application message loop");
+        }
+
+        // Then stop the application host
         _lifetime.StopApplication();
+    }
+
+    private void OnConnectionStateChanged(object? sender, bool isConnected)
+    {
+        UpdateConnectionStatus(isConnected);
+    }
+
+    private void UpdateConnectionStatus(bool isConnected)
+    {
+        // Update the connection status menu item and icon on the UI thread
+        if (_connectionStatusMenuItem != null && _notifyIcon != null)
+        {
+            // Use BeginInvoke to marshal to the UI thread if needed
+            if (_contextMenu?.InvokeRequired == true)
+            {
+                _contextMenu.BeginInvoke(new Action(() =>
+                {
+                    _connectionStatusMenuItem.Text = isConnected
+                        ? "Connection: Connected"
+                        : "Connection: Error";
+
+                    UpdateTrayIcon(isConnected);
+
+                    _logger.LogInformation("Connection status changed to: {Status}",
+                        isConnected ? "Connected" : "Error");
+                }));
+            }
+            else
+            {
+                _connectionStatusMenuItem.Text = isConnected
+                    ? "Connection: Connected"
+                    : "Connection: Error";
+
+                UpdateTrayIcon(isConnected);
+
+                _logger.LogInformation("Connection status set to: {Status}",
+                    isConnected ? "Connected" : "Error");
+            }
+        }
+    }
+
+    private void UpdateTrayIcon(bool isConnected)
+    {
+        if (_notifyIcon == null)
+        {
+            return;
+        }
+
+        try
+        {
+            // Determine which icon to use based on connection state
+            var iconPath = isConnected
+                ? Path.Combine(AppContext.BaseDirectory, "app.ico")
+                : Path.Combine(AppContext.BaseDirectory, "app-offline.ico");
+
+            var pngPath = isConnected
+                ? Path.Combine(AppContext.BaseDirectory, "app.png")
+                : Path.Combine(AppContext.BaseDirectory, "app-offline.png");
+
+            // Dispose previous icon if it's not a system icon
+            if (_notifyIcon.Icon != null && _notifyIcon.Icon != System.Drawing.SystemIcons.Application)
+            {
+                try
+                {
+                    var oldIcon = _notifyIcon.Icon;
+                    _notifyIcon.Icon = null; // Clear reference before disposing
+                    oldIcon.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "Error disposing previous icon");
+                }
+            }
+
+            // Try to load the appropriate icon
+            if (File.Exists(iconPath))
+            {
+                try
+                {
+                    _notifyIcon.Icon = new System.Drawing.Icon(iconPath);
+                    _logger.LogInformation("Loaded {IconType} icon from {IconPath}",
+                        isConnected ? "connected" : "offline", iconPath);
+                }
+                catch
+                {
+                    // If ICO fails, try PNG
+                    if (File.Exists(pngPath))
+                    {
+                        using var bitmap = new System.Drawing.Bitmap(pngPath);
+                        var iconHandle = bitmap.GetHicon();
+                        _notifyIcon.Icon = System.Drawing.Icon.FromHandle(iconHandle);
+                        _logger.LogInformation("Loaded {IconType} icon from {PngPath}",
+                            isConnected ? "connected" : "offline", pngPath);
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
+            }
+            else if (File.Exists(pngPath))
+            {
+                // Load PNG and convert to icon
+                using var bitmap = new System.Drawing.Bitmap(pngPath);
+                var iconHandle = bitmap.GetHicon();
+                _notifyIcon.Icon = System.Drawing.Icon.FromHandle(iconHandle);
+                _logger.LogInformation("Loaded {IconType} icon from {PngPath}",
+                    isConnected ? "connected" : "offline", pngPath);
+            }
+            else
+            {
+                _logger.LogWarning("{IconType} icon file not found at {IconPath} or {PngPath}. Using default icon.",
+                    isConnected ? "Connected" : "Offline", iconPath, pngPath);
+                _notifyIcon.Icon = System.Drawing.SystemIcons.Application;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load {IconType} icon. Using default icon.",
+                isConnected ? "connected" : "offline");
+            _notifyIcon.Icon = System.Drawing.SystemIcons.Application;
+        }
     }
 
     public override void Dispose()
     {
-        if (_notifyIcon != null)
+        if (_isDisposed)
         {
-            _notifyIcon.Visible = false;
-            _notifyIcon.Dispose();
+            return;
         }
 
-        _contextMenu?.Dispose();
+        _isDisposed = true;
+
+        if (_healthCheckService != null)
+        {
+            _healthCheckService.ConnectionStateChanged -= OnConnectionStateChanged;
+        }
+
+        if (_notifyIcon != null)
+        {
+            try
+            {
+                _notifyIcon.Visible = false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Error hiding notify icon during disposal");
+            }
+
+            try
+            {
+                _notifyIcon.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Error disposing notify icon");
+            }
+        }
+
+        try
+        {
+            _contextMenu?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Error disposing context menu");
+        }
 
         base.Dispose();
     }

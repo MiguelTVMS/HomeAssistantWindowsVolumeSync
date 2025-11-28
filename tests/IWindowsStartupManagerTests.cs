@@ -5,8 +5,35 @@ namespace HomeAssistantWindowsVolumeSync.Tests;
 /// <summary>
 /// Tests for WindowsStartupManager static class interface and contract
 /// </summary>
-public class IWindowsStartupManagerTests
+[Collection("WindowsStartup")]
+public class IWindowsStartupManagerTests : IDisposable
 {
+    public IWindowsStartupManagerTests()
+    {
+        // Ensure clean state before each test
+        try
+        {
+            WindowsStartupManager.DisableStartup();
+        }
+        catch
+        {
+            // Ignore cleanup errors
+        }
+    }
+
+    public void Dispose()
+    {
+        // Ensure clean state after each test
+        try
+        {
+            WindowsStartupManager.DisableStartup();
+        }
+        catch
+        {
+            // Ignore cleanup errors
+        }
+    }
+
     [Fact]
     public void WindowsStartupManager_HasIsStartupEnabledMethod()
     {

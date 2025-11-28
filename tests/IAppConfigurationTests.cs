@@ -60,6 +60,21 @@ public class IAppConfigurationTests
     }
 
     [Fact]
+    public void IAppConfiguration_HasDebounceTimerProperty()
+    {
+        // Arrange
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>())
+            .Build();
+
+        IAppConfiguration appConfig = new AppConfiguration(configuration);
+
+        // Act & Assert - Should have a default value
+        var debounceTimer = appConfig.DebounceTimer;
+        Assert.Equal(100, debounceTimer); // Default is 100ms
+    }
+
+    [Fact]
     public void IAppConfiguration_HasReloadMethod()
     {
         // Arrange
@@ -71,6 +86,48 @@ public class IAppConfigurationTests
 
         // Act & Assert - Method should exist and be callable
         appConfig.Reload();
+    }
+
+    [Fact]
+    public void IAppConfiguration_HasHealthCheckTimerProperty()
+    {
+        // Arrange
+        var configData = new Dictionary<string, string?>
+        {
+            { "HomeAssistant:HealthCheckTimer", "7500" }
+        };
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        IAppConfiguration appConfig = new AppConfiguration(configuration);
+
+        // Act
+        var healthCheckTimer = appConfig.HealthCheckTimer;
+
+        // Assert
+        Assert.Equal(7500, healthCheckTimer);
+    }
+
+    [Fact]
+    public void IAppConfiguration_HasHealthCheckRetriesProperty()
+    {
+        // Arrange
+        var configData = new Dictionary<string, string?>
+        {
+            { "HomeAssistant:HealthCheckRetries", "5" }
+        };
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        IAppConfiguration appConfig = new AppConfiguration(configuration);
+
+        // Act
+        var healthCheckRetries = appConfig.HealthCheckRetries;
+
+        // Assert
+        Assert.Equal(5, healthCheckRetries);
     }
 
     [Fact]
