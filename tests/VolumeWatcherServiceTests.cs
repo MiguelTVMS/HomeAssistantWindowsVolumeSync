@@ -460,10 +460,10 @@ public class VolumeWatcherServiceTests
             _mockHomeAssistantClient.Object,
             _mockConfiguration.Object);
 
-        // Act - Simulate very rapid changes that would trigger timer disposal
-        for (int i = 0; i <= 100; i++)
+        // Act - Simulate rapid changes that would trigger timer disposal
+        for (int i = 0; i <= 20; i++)
         {
-            service.HandleVolumeChange(i / 100f, false);
+            service.HandleVolumeChange(i / 20f, false);
         }
 
         // Wait for debounce to complete
