@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Xunit;
 
@@ -60,8 +61,13 @@ public class SettingsIntegrationTests : IDisposable
         // Act - Save new settings
         settingsManager.SaveSettings("https://updated.local", "updated_webhook", "media_player.updated");
 
-        // Small delay to allow file watcher to detect changes
-        Thread.Sleep(500);
+        // Wait for reload with timeout (polling approach for reliability)
+        var timeout = TimeSpan.FromSeconds(2);
+        var stopwatch = Stopwatch.StartNew();
+        while (!reloadEventFired && stopwatch.Elapsed < timeout)
+        {
+            Thread.Sleep(50);
+        }
 
         // Assert - Configuration should be reloaded with new values
         Assert.True(reloadEventFired, "Configuration reload event should have fired");
@@ -97,11 +103,19 @@ public class SettingsIntegrationTests : IDisposable
 
         // Act
         settingsManager.SaveSettings("https://updated.local", "updated_webhook", "media_player.updated");
-        Thread.Sleep(500);
+        
+        // Wait for configuration to update with timeout (polling approach for reliability)
+        var timeout = TimeSpan.FromSeconds(2);
+        var stopwatch = Stopwatch.StartNew();
+        var expectedUrl = "https://updated.local/api/webhook/updated_webhook";
+        while (appConfig.FullWebhookUrl != expectedUrl && stopwatch.Elapsed < timeout)
+        {
+            Thread.Sleep(50);
+        }
 
         // Assert
         var updatedFullUrl = appConfig.FullWebhookUrl;
-        Assert.Equal("https://updated.local/api/webhook/updated_webhook", updatedFullUrl);
+        Assert.Equal(expectedUrl, updatedFullUrl);
     }
 
     [Fact]
@@ -137,7 +151,14 @@ public class SettingsIntegrationTests : IDisposable
 
         // Act
         settingsManager.SaveSettings("https://new.local", "new_webhook", "media_player.new");
-        Thread.Sleep(500);
+        
+        // Wait for configuration to reload with timeout (polling approach for reliability)
+        var timeout = TimeSpan.FromSeconds(2);
+        var stopwatch = Stopwatch.StartNew();
+        while (capturedWebhookUrl == null && stopwatch.Elapsed < timeout)
+        {
+            Thread.Sleep(50);
+        }
 
         // Assert
         Assert.Equal("https://new.local", capturedWebhookUrl);
