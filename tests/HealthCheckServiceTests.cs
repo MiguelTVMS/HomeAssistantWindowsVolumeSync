@@ -9,17 +9,12 @@ public class HealthCheckServiceTests
     private readonly Mock<ILogger<HealthCheckService>> _mockLogger;
     private readonly Mock<IHomeAssistantClient> _mockHomeAssistantClient;
     private readonly Mock<IAppConfiguration> _mockConfiguration;
-    private readonly Mock<VolumeWatcherService> _mockVolumeWatcherService;
 
     public HealthCheckServiceTests()
     {
         _mockLogger = new Mock<ILogger<HealthCheckService>>();
         _mockHomeAssistantClient = new Mock<IHomeAssistantClient>();
         _mockConfiguration = new Mock<IAppConfiguration>();
-        _mockVolumeWatcherService = new Mock<VolumeWatcherService>(
-            Mock.Of<ILogger<VolumeWatcherService>>(),
-            Mock.Of<IHomeAssistantClient>(),
-            Mock.Of<IAppConfiguration>());
 
         _mockConfiguration.Setup(c => c.HealthCheckTimer).Returns(5000);
         _mockConfiguration.Setup(c => c.HealthCheckRetries).Returns(3);
@@ -32,8 +27,7 @@ public class HealthCheckServiceTests
         var service = new HealthCheckService(
             _mockLogger.Object,
             _mockHomeAssistantClient.Object,
-            _mockConfiguration.Object,
-            _mockVolumeWatcherService.Object);
+            _mockConfiguration.Object);
 
         // Assert
         Assert.NotNull(service);
@@ -51,8 +45,7 @@ public class HealthCheckServiceTests
         var service = new HealthCheckService(
             _mockLogger.Object,
             _mockHomeAssistantClient.Object,
-            _mockConfiguration.Object,
-            _mockVolumeWatcherService.Object);
+            _mockConfiguration.Object);
 
         // Act
         var result = await service.CheckHealthAsync();
@@ -73,8 +66,7 @@ public class HealthCheckServiceTests
         var service = new HealthCheckService(
             _mockLogger.Object,
             _mockHomeAssistantClient.Object,
-            _mockConfiguration.Object,
-            _mockVolumeWatcherService.Object);
+            _mockConfiguration.Object);
 
         // Act
         var result = await service.CheckHealthAsync();
@@ -94,8 +86,7 @@ public class HealthCheckServiceTests
         var service = new HealthCheckService(
             _mockLogger.Object,
             _mockHomeAssistantClient.Object,
-            _mockConfiguration.Object,
-            _mockVolumeWatcherService.Object);
+            _mockConfiguration.Object);
 
         // Act
         await service.CheckHealthAsync(); // Failure 1
@@ -118,8 +109,7 @@ public class HealthCheckServiceTests
         var service = new HealthCheckService(
             _mockLogger.Object,
             _mockHomeAssistantClient.Object,
-            _mockConfiguration.Object,
-            _mockVolumeWatcherService.Object);
+            _mockConfiguration.Object);
 
         // Simulate failures
         _mockHomeAssistantClient.Setup(c => c.CheckHealthAsync())
@@ -151,8 +141,7 @@ public class HealthCheckServiceTests
         var service = new HealthCheckService(
             _mockLogger.Object,
             _mockHomeAssistantClient.Object,
-            _mockConfiguration.Object,
-            _mockVolumeWatcherService.Object);
+            _mockConfiguration.Object);
 
         bool eventRaised = false;
         bool eventIsConnected = true;
@@ -183,8 +172,7 @@ public class HealthCheckServiceTests
         var service = new HealthCheckService(
             _mockLogger.Object,
             _mockHomeAssistantClient.Object,
-            _mockConfiguration.Object,
-            _mockVolumeWatcherService.Object);
+            _mockConfiguration.Object);
 
         // Act
         await service.StartAsync(CancellationToken.None);
@@ -201,8 +189,7 @@ public class HealthCheckServiceTests
         var service = new HealthCheckService(
             _mockLogger.Object,
             _mockHomeAssistantClient.Object,
-            _mockConfiguration.Object,
-            _mockVolumeWatcherService.Object);
+            _mockConfiguration.Object);
 
         await service.StartAsync(CancellationToken.None);
 
@@ -217,8 +204,7 @@ public class HealthCheckServiceTests
         var service = new HealthCheckService(
             _mockLogger.Object,
             _mockHomeAssistantClient.Object,
-            _mockConfiguration.Object,
-            _mockVolumeWatcherService.Object);
+            _mockConfiguration.Object);
 
         // Act & Assert
         service.Dispose();
@@ -235,8 +221,7 @@ public class HealthCheckServiceTests
         var service = new HealthCheckService(
             _mockLogger.Object,
             _mockHomeAssistantClient.Object,
-            _mockConfiguration.Object,
-            _mockVolumeWatcherService.Object);
+            _mockConfiguration.Object);
 
         bool disconnectedEventFired = false;
         service.ConnectionStateChanged += (sender, isConnected) =>
