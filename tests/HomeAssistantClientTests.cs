@@ -56,7 +56,7 @@ public class HomeAssistantClientTests
                 capturedUrl = request.RequestUri?.ToString();
                 capturedContent = await request.Content!.ReadAsStringAsync();
             })
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+            .Returns(() => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)));
 
         var httpClient = new HttpClient(handlerMock.Object);
         var client = new HomeAssistantClient(httpClient, _loggerMock.Object, _configuration);
@@ -89,7 +89,7 @@ public class HomeAssistantClientTests
             {
                 capturedContent = await request.Content!.ReadAsStringAsync();
             })
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+            .Returns(() => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)));
 
         var httpClient = new HttpClient(handlerMock.Object);
         var client = new HomeAssistantClient(httpClient, _loggerMock.Object, _configuration);
@@ -122,7 +122,7 @@ public class HomeAssistantClientTests
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>())
             .Callback(() => requestMade = true)
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+            .Returns(() => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)));
 
         var httpClient = new HttpClient(handlerMock.Object);
         var client = new HomeAssistantClient(httpClient, _loggerMock.Object, emptyConfig);
@@ -145,7 +145,7 @@ public class HomeAssistantClientTests
                 "SendAsync",
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.InternalServerError));
+            .Returns(() => Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError)));
 
         var httpClient = new HttpClient(handlerMock.Object);
         var client = new HomeAssistantClient(httpClient, _loggerMock.Object, _configuration);
@@ -215,7 +215,7 @@ public class HomeAssistantClientTests
             {
                 capturedContent = await request.Content!.ReadAsStringAsync();
             })
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+            .Returns(() => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)));
 
         var httpClient = new HttpClient(handlerMock.Object);
         var client = new HomeAssistantClient(httpClient, _loggerMock.Object, _configuration);
@@ -289,7 +289,7 @@ public class HomeAssistantClientTests
             {
                 capturedContent = await request.Content!.ReadAsStringAsync();
             })
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+            .Returns(() => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)));
 
         var httpClient = new HttpClient(handlerMock.Object);
         var client = new HomeAssistantClient(httpClient, _loggerMock.Object, configWithPlayer);
@@ -482,7 +482,7 @@ public class HomeAssistantClientTests
             {
                 capturedUrl = request.RequestUri?.ToString();
             })
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+            .Returns(() => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)));
 
         var httpClient = new HttpClient(handlerMock.Object);
         var client = new HomeAssistantClient(httpClient, _loggerMock.Object, httpConfig);
@@ -504,7 +504,7 @@ public class HomeAssistantClientTests
                 "SendAsync",
                 ItExpr.Is<HttpRequestMessage>(req => req.Method == HttpMethod.Get),
                 ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+            .Returns(() => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)));
 
         var httpClient = new HttpClient(handlerMock.Object);
         var client = new HomeAssistantClient(httpClient, _loggerMock.Object, _configuration);
@@ -530,7 +530,7 @@ public class HomeAssistantClientTests
                 "SendAsync",
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage(statusCode));
+            .Returns(() => Task.FromResult(new HttpResponseMessage(statusCode)));
 
         var httpClient = new HttpClient(handlerMock.Object);
         var client = new HomeAssistantClient(httpClient, _loggerMock.Object, _configuration);
@@ -559,7 +559,7 @@ public class HomeAssistantClientTests
                 "SendAsync",
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage(statusCode));
+            .Returns(() => Task.FromResult(new HttpResponseMessage(statusCode)));
 
         var httpClient = new HttpClient(handlerMock.Object);
         var client = new HomeAssistantClient(httpClient, _loggerMock.Object, _configuration);

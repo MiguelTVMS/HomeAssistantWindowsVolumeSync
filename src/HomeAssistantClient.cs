@@ -86,7 +86,7 @@ public class HomeAssistantClient : IHomeAssistantClient
                 TargetMediaPlayer = _targetMediaPlayer
             };
 
-            var response = await _httpClient.PostAsJsonAsync(_webhookUrl, payload);
+            using var response = await _httpClient.PostAsJsonAsync(_webhookUrl, payload);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -116,7 +116,7 @@ public class HomeAssistantClient : IHomeAssistantClient
         {
             // Send a minimal request to check if Home Assistant is reachable
             // We use a HEAD request or a simple GET to avoid triggering automations
-            var response = await _httpClient.GetAsync(_configuration.WebhookUrl, HttpCompletionOption.ResponseHeadersRead);
+            using var response = await _httpClient.GetAsync(_configuration.WebhookUrl, HttpCompletionOption.ResponseHeadersRead);
 
             // Only 2XX status codes indicate a healthy connection
             // 4XX/5XX errors mean something is wrong with the server or configuration
