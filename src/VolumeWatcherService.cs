@@ -127,7 +127,7 @@ public class VolumeWatcherService : BackgroundService
             var previousCts = _debounceCts;
             previousCts?.Cancel();
             previousCts?.Dispose();
-            
+
             _debounceCts = new CancellationTokenSource();
             var token = _debounceCts.Token;
             var waitTime = _configuration.DebounceTimer;
@@ -189,7 +189,15 @@ public class VolumeWatcherService : BackgroundService
             _defaultDevice.AudioEndpointVolume.OnVolumeNotification -= _volumeDelegate;
         }
 
-        _debounceCts?.Cancel();
+        try
+        {
+            _debounceCts?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // CancellationTokenSource was already disposed, ignore
+        }
+
         _debounceCts?.Dispose();
         _defaultDevice?.Dispose();
         _deviceEnumerator?.Dispose();

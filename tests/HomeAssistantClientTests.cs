@@ -564,12 +564,11 @@ public class HomeAssistantClientTests
         using var httpClient = new HttpClient(handlerMock.Object);
         var client = new HomeAssistantClient(httpClient, _loggerMock.Object, _configuration);
 
-            // Act
-            var result = await client.CheckHealthAsync();
+        // Act
+        var result = await client.CheckHealthAsync();
 
-            // Assert
-            Assert.False(result);
-        }
+        // Assert
+        Assert.False(result);
     }
 
     [Fact]
