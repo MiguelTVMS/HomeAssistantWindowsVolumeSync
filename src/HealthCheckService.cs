@@ -12,7 +12,6 @@ public class HealthCheckService : IHealthCheckService, IHostedService, IDisposab
     private readonly ILogger<HealthCheckService> _logger;
     private readonly IHomeAssistantClient _homeAssistantClient;
     private readonly IAppConfiguration _configuration;
-    private readonly VolumeWatcherService _volumeWatcherService;
     private System.Threading.Timer? _healthCheckTimer;
     private int _consecutiveFailures;
     private bool _isConnected = true;
@@ -45,13 +44,11 @@ public class HealthCheckService : IHealthCheckService, IHostedService, IDisposab
     public HealthCheckService(
         ILogger<HealthCheckService> logger,
         IHomeAssistantClient homeAssistantClient,
-        IAppConfiguration configuration,
-        VolumeWatcherService volumeWatcherService)
+        IAppConfiguration configuration)
     {
         _logger = logger;
         _homeAssistantClient = homeAssistantClient;
         _configuration = configuration;
-        _volumeWatcherService = volumeWatcherService;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -64,7 +61,7 @@ public class HealthCheckService : IHealthCheckService, IHostedService, IDisposab
         // Start periodic health checks
         var interval = _configuration.HealthCheckTimer;
         _healthCheckTimer = new System.Threading.Timer(
-            async _ => await CheckHealthAsync(),
+            _ => _ = Task.Run(async () => await CheckHealthAsync()),
             null,
             interval,
             interval);

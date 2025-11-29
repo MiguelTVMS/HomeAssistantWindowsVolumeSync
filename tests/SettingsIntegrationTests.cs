@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Xunit;
 
@@ -10,6 +11,9 @@ public class SettingsIntegrationTests : IDisposable
 {
     private readonly string _testDirectory;
     private readonly string _testSettingsFile;
+    
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(2);
+    private static readonly int PollingIntervalMs = 50;
 
     public SettingsIntegrationTests()
     {
@@ -24,6 +28,21 @@ public class SettingsIntegrationTests : IDisposable
         {
             Directory.Delete(_testDirectory, true);
         }
+    }
+
+    /// <summary>
+    /// Waits for a condition to become true with a configurable timeout.
+    /// Uses polling instead of Thread.Sleep for more reliable test behavior.
+    /// </summary>
+    private static bool WaitForCondition(Func<bool> condition, TimeSpan? timeout = null)
+    {
+        var actualTimeout = timeout ?? DefaultTimeout;
+        var stopwatch = Stopwatch.StartNew();
+        while (!condition() && stopwatch.Elapsed < actualTimeout)
+        {
+            Thread.Sleep(PollingIntervalMs);
+        }
+        return condition();
     }
 
     [Fact]
@@ -60,8 +79,8 @@ public class SettingsIntegrationTests : IDisposable
         // Act - Save new settings
         settingsManager.SaveSettings("https://updated.local", "updated_webhook", "media_player.updated");
 
-        // Small delay to allow file watcher to detect changes
-        Thread.Sleep(500);
+        // Wait for reload with timeout (polling approach for reliability)
+        WaitForCondition(() => reloadEventFired);
 
         // Assert - Configuration should be reloaded with new values
         Assert.True(reloadEventFired, "Configuration reload event should have fired");
@@ -96,12 +115,15 @@ public class SettingsIntegrationTests : IDisposable
         Assert.Equal("https://initial.local/api/webhook/initial_webhook", initialFullUrl);
 
         // Act
+        var expectedUrl = "https://updated.local/api/webhook/updated_webhook";
         settingsManager.SaveSettings("https://updated.local", "updated_webhook", "media_player.updated");
-        Thread.Sleep(500);
+        
+        // Wait for configuration to update with timeout (polling approach for reliability)
+        WaitForCondition(() => appConfig.FullWebhookUrl == expectedUrl);
 
         // Assert
         var updatedFullUrl = appConfig.FullWebhookUrl;
-        Assert.Equal("https://updated.local/api/webhook/updated_webhook", updatedFullUrl);
+        Assert.Equal(expectedUrl, updatedFullUrl);
     }
 
     [Fact]
@@ -137,7 +159,9 @@ public class SettingsIntegrationTests : IDisposable
 
         // Act
         settingsManager.SaveSettings("https://new.local", "new_webhook", "media_player.new");
-        Thread.Sleep(500);
+        
+        // Wait for configuration to reload with timeout (polling approach for reliability)
+        WaitForCondition(() => capturedWebhookUrl != null);
 
         // Assert
         Assert.Equal("https://new.local", capturedWebhookUrl);
