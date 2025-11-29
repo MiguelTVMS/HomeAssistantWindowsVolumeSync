@@ -7,6 +7,7 @@
     <UserSecretsId>dotnet-HomeAssistantWindowsVolumeSync-f9c1b1c8-1a1a-4a1a-8a1a-1a1a1a1a1a1a</UserSecretsId>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>app.ico</ApplicationIcon>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
   <!-- Use Exe for Debug builds (shows console), WinExe for Release builds (no console) -->
