@@ -6,6 +6,7 @@ namespace HomeAssistantWindowsVolumeSync.Tests;
 /// <summary>
 /// Tests for WindowsStartupManager
 /// </summary>
+[Collection("WindowsStartup")]
 public class WindowsStartupManagerTests : IDisposable
 {
     private const string RunKeyPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";

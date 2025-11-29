@@ -61,6 +61,15 @@ public class AppConfiguration : IAppConfiguration
     public bool StrictTLS => _configuration.GetValue<bool>("HomeAssistant:StrictTLS", true);
 
     /// <inheritdoc/>
+    public int DebounceTimer => _configuration.GetValue<int>("HomeAssistant:DebounceTimer", 100);
+
+    /// <inheritdoc/>
+    public int HealthCheckTimer => _configuration.GetValue<int>("HomeAssistant:HealthCheckTimer", 5000);
+
+    /// <inheritdoc/>
+    public int HealthCheckRetries => _configuration.GetValue<int>("HomeAssistant:HealthCheckRetries", 3);
+
+    /// <inheritdoc/>
     public void Reload()
     {
         if (_configurationRoot != null)

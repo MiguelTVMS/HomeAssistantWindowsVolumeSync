@@ -39,7 +39,7 @@ The application sends the following JSON payload:
 {
   "volume": 50,
   "mute": false,
-  "target_media_player": "media_player.speaker"
+  "target_media_player": "media_player.your_media_player"
 }
 ```
 
@@ -92,7 +92,7 @@ You can add the automation using one of these methods:
      - If you want to use a custom webhook ID, update both the automation file and this setting
 
    - **Target Media Player**: Your media player entity ID
-     - Example: `media_player.speaker`
+     - Example: `media_player.your_media_player`
      - Find entity IDs in: **Developer Tools** → **States** in Home Assistant
 
 3. Click **Save**

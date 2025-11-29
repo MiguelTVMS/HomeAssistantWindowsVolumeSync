@@ -139,10 +139,21 @@ The service uses `appsettings.json` for configuration:
   },
   "HomeAssistant": {
     "WebhookUrl": "https://your-ha-url/api/webhook/homeassistant_windows_volume_sync",
-    "TargetMediaPlayer": "media_player.your_sonos_speaker"
+    "TargetMediaPlayer": "media_player.your_media_player",
+    "DebounceTimer": 100,
+    "HealthCheckTimer": 5000,
+    "HealthCheckRetries": 3
   }
 }
 ```
+
+### Configuration Properties
+
+- **WebhookUrl**: Full Home Assistant webhook URL
+- **TargetMediaPlayer**: Media player entity ID in Home Assistant
+- **DebounceTimer**: Debounce time in milliseconds (default: 100). Time to wait after the last volume change before sending the update to Home Assistant. This prevents flooding Home Assistant with requests during rapid volume changes.
+- **HealthCheckTimer**: Health check interval in milliseconds (default: 5000). Time between connection health checks to Home Assistant. The service monitors the connection and displays "Connected" or "Error" status in the system tray.
+- **HealthCheckRetries**: Number of consecutive health check failures before marking the connection as disconnected (default: 3). For example, with default settings of HealthCheckTimer=5000 and HealthCheckRetries=3, the service will display "Error" status after 15 seconds (3 failures × 5 seconds) of connectivity issues.
 
 ### Logging Configuration
 

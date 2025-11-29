@@ -25,6 +25,7 @@ public class SystemTrayServiceTests
         _mockServiceScope = new Mock<IServiceScope>();
         _mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
         _mockConfiguration = new Mock<IAppConfiguration>();
+        _mockConfiguration.Setup(c => c.DebounceTimer).Returns(100); // Default value
 
         // Create a real VolumeWatcherService with mocked dependencies
         var mockVolumeWatcherLogger = new Mock<ILogger<VolumeWatcherService>>();
@@ -32,7 +33,8 @@ public class SystemTrayServiceTests
 
         _volumeWatcherService = new VolumeWatcherService(
             mockVolumeWatcherLogger.Object,
-            mockHomeAssistantClient.Object);
+            mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
 
         // Setup service provider to return the VolumeWatcherService
         _mockServiceProvider
@@ -127,4 +129,235 @@ public class SystemTrayServiceTests
         Assert.NotNull(service);
         Assert.IsType<SystemTrayService>(service);
     }
+
+    [Fact]
+    public void OnExitClick_ShouldCallStopApplication()
+    {
+        // Arrange
+        var service = new SystemTrayService(
+            _mockLogger.Object,
+            _mockLifetime.Object,
+            _mockServiceProvider.Object,
+            _mockConfiguration.Object);
+
+        // Use reflection to get the OnExitClick method
+        var method = typeof(SystemTrayService).GetMethod("OnExitClick",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        Assert.NotNull(method);
+
+        // Act
+        method.Invoke(service, new object?[] { null, EventArgs.Empty });
+
+        // Assert
+        _mockLifetime.Verify(x => x.StopApplication(), Times.Once);
+    }
+
+    [Fact]
+    public void OnExitClick_ShouldLogExitRequest()
+    {
+        // Arrange
+        var service = new SystemTrayService(
+            _mockLogger.Object,
+            _mockLifetime.Object,
+            _mockServiceProvider.Object,
+            _mockConfiguration.Object);
+
+        // Use reflection to get the OnExitClick method
+        var method = typeof(SystemTrayService).GetMethod("OnExitClick",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        Assert.NotNull(method);
+
+        // Act
+        method.Invoke(service, new object?[] { null, EventArgs.Empty });
+
+        // Assert
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Exit requested")),
+                null,
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public void OnExitClick_ShouldNotThrowException()
+    {
+        // Arrange
+        var service = new SystemTrayService(
+            _mockLogger.Object,
+            _mockLifetime.Object,
+            _mockServiceProvider.Object,
+            _mockConfiguration.Object);
+
+        // Use reflection to get the OnExitClick method
+        var method = typeof(SystemTrayService).GetMethod("OnExitClick",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        Assert.NotNull(method);
+
+        // Act & Assert - Should not throw
+        var exception = Record.Exception(() =>
+            method.Invoke(service, new object?[] { null, EventArgs.Empty }));
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void Dispose_ShouldNotThrowException_WhenCalledOnce()
+    {
+        // Arrange
+        var service = new SystemTrayService(
+            _mockLogger.Object,
+            _mockLifetime.Object,
+            _mockServiceProvider.Object,
+            _mockConfiguration.Object);
+
+        // Act & Assert - Should not throw
+        var exception = Record.Exception(() => service.Dispose());
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void Dispose_ShouldNotThrowException_WhenCalledMultipleTimes()
+    {
+        // Arrange
+        var service = new SystemTrayService(
+            _mockLogger.Object,
+            _mockLifetime.Object,
+            _mockServiceProvider.Object,
+            _mockConfiguration.Object);
+
+        // Act - Call Dispose multiple times
+        service.Dispose();
+
+        // Assert - Second call should not throw
+        var exception = Record.Exception(() => service.Dispose());
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void UpdateConnectionStatus_ShouldInvoke_WithConnectedState()
+    {
+        // Arrange
+        var service = new SystemTrayService(
+            _mockLogger.Object,
+            _mockLifetime.Object,
+            _mockServiceProvider.Object,
+            _mockConfiguration.Object);
+
+        // Use reflection to get the UpdateConnectionStatus method
+        var method = typeof(SystemTrayService).GetMethod("UpdateConnectionStatus",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        Assert.NotNull(method);
+
+        // Act - Should not throw even if tray icon is not initialized
+        var exception = Record.Exception(() =>
+            method.Invoke(service, new object[] { true }));
+
+        // Assert
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void UpdateConnectionStatus_ShouldInvoke_WithDisconnectedState()
+    {
+        // Arrange
+        var service = new SystemTrayService(
+            _mockLogger.Object,
+            _mockLifetime.Object,
+            _mockServiceProvider.Object,
+            _mockConfiguration.Object);
+
+        // Use reflection to get the UpdateConnectionStatus method
+        var method = typeof(SystemTrayService).GetMethod("UpdateConnectionStatus",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        Assert.NotNull(method);
+
+        // Act - Should not throw even if tray icon is not initialized
+        var exception = Record.Exception(() =>
+            method.Invoke(service, new object[] { false }));
+
+        // Assert
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void UpdateTrayIcon_ShouldInvoke_WithConnectedState()
+    {
+        // Arrange
+        var service = new SystemTrayService(
+            _mockLogger.Object,
+            _mockLifetime.Object,
+            _mockServiceProvider.Object,
+            _mockConfiguration.Object);
+
+        // Use reflection to get the UpdateTrayIcon method
+        var method = typeof(SystemTrayService).GetMethod("UpdateTrayIcon",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        Assert.NotNull(method);
+
+        // Act - Should not throw even if tray icon is not initialized
+        var exception = Record.Exception(() =>
+            method.Invoke(service, new object[] { true }));
+
+        // Assert
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void UpdateTrayIcon_ShouldInvoke_WithDisconnectedState()
+    {
+        // Arrange
+        var service = new SystemTrayService(
+            _mockLogger.Object,
+            _mockLifetime.Object,
+            _mockServiceProvider.Object,
+            _mockConfiguration.Object);
+
+        // Use reflection to get the UpdateTrayIcon method
+        var method = typeof(SystemTrayService).GetMethod("UpdateTrayIcon",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        Assert.NotNull(method);
+
+        // Act - Should not throw even if tray icon is not initialized
+        var exception = Record.Exception(() =>
+            method.Invoke(service, new object[] { false }));
+
+        // Assert
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void UpdateTrayIcon_ShouldNotThrow_WhenIconFilesNotFound()
+    {
+        // Arrange
+        var service = new SystemTrayService(
+            _mockLogger.Object,
+            _mockLifetime.Object,
+            _mockServiceProvider.Object,
+            _mockConfiguration.Object);
+
+        // Use reflection to get the UpdateTrayIcon method
+        var method = typeof(SystemTrayService).GetMethod("UpdateTrayIcon",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        Assert.NotNull(method);
+
+        // Act & Assert - Should not throw even if icon files don't exist
+        var exception = Record.Exception(() =>
+            method.Invoke(service, new object[] { true }));
+
+        Assert.Null(exception);
+    }
 }
+

@@ -9,11 +9,14 @@ public class VolumeWatcherServiceTests
 {
     private readonly Mock<ILogger<VolumeWatcherService>> _mockLogger;
     private readonly Mock<IHomeAssistantClient> _mockHomeAssistantClient;
+    private readonly Mock<IAppConfiguration> _mockConfiguration;
 
     public VolumeWatcherServiceTests()
     {
         _mockLogger = new Mock<ILogger<VolumeWatcherService>>();
         _mockHomeAssistantClient = new Mock<IHomeAssistantClient>();
+        _mockConfiguration = new Mock<IAppConfiguration>();
+        _mockConfiguration.Setup(c => c.DebounceTimer).Returns(100); // Default value
     }
 
     [Fact]
@@ -22,7 +25,8 @@ public class VolumeWatcherServiceTests
         // Act
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object);
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
 
         // Assert
         Assert.NotNull(service);
@@ -34,7 +38,8 @@ public class VolumeWatcherServiceTests
         // Act & Assert - Should not throw
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object);
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
 
         Assert.NotNull(service);
     }
@@ -45,7 +50,8 @@ public class VolumeWatcherServiceTests
         // Arrange
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object);
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
 
         // Act
         service.SetPaused(true);
@@ -67,7 +73,8 @@ public class VolumeWatcherServiceTests
         // Arrange
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object);
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
 
         // Act
         service.SetPaused(false);
@@ -89,7 +96,8 @@ public class VolumeWatcherServiceTests
         // Arrange
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object);
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
 
         // Act
         service.SetPaused(true);
@@ -113,7 +121,8 @@ public class VolumeWatcherServiceTests
         // Arrange
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object);
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
 
         // Act - Should not throw
         service.Dispose();
@@ -128,7 +137,8 @@ public class VolumeWatcherServiceTests
         // Arrange
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object);
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
 
         // Assert - Verify it's a BackgroundService
         Assert.IsAssignableFrom<BackgroundService>(service);
@@ -141,7 +151,8 @@ public class VolumeWatcherServiceTests
         // Arrange
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object);
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
 
         using var cts = new CancellationTokenSource();
         cts.CancelAfter(TimeSpan.FromMilliseconds(100));
@@ -182,7 +193,8 @@ public class VolumeWatcherServiceTests
         // Arrange
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object);
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
 
         using var cts = new CancellationTokenSource();
         cts.CancelAfter(TimeSpan.FromMilliseconds(100));
@@ -217,7 +229,8 @@ public class VolumeWatcherServiceTests
         // Arrange
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object);
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
 
         // Act & Assert - Should complete without throwing
         await service.StopAsync(CancellationToken.None);
@@ -229,11 +242,14 @@ public class VolumeWatcherServiceTests
         // Arrange
         var logger = new Mock<ILogger<VolumeWatcherService>>();
         var client = new Mock<IHomeAssistantClient>();
+        var config = new Mock<IAppConfiguration>();
+        config.Setup(c => c.DebounceTimer).Returns(100);
 
         // Act
         var service = new VolumeWatcherService(
             logger.Object,
-            client.Object);
+            client.Object,
+            config.Object);
 
         // Assert
         Assert.NotNull(service);
@@ -246,7 +262,8 @@ public class VolumeWatcherServiceTests
         // Arrange
         var service = new VolumeWatcherService(
             _mockLogger.Object,
-            _mockHomeAssistantClient.Object);
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
 
         // Act
         service.SetPaused(true);
@@ -262,5 +279,269 @@ public class VolumeWatcherServiceTests
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Exactly(2));
     }
+
+    #region Debounce Tests
+
+    [Fact]
+    public async Task HandleVolumeChange_WithinDebounceWindow_ShouldBatchUpdates()
+    {
+        // Arrange
+        var debounceMs = 200;
+        _mockConfiguration.Setup(c => c.DebounceTimer).Returns(debounceMs);
+        _mockHomeAssistantClient
+            .Setup(c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()))
+            .Returns(Task.CompletedTask);
+
+        var service = new VolumeWatcherService(
+            _mockLogger.Object,
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
+
+        // Act - Simulate multiple rapid volume changes
+        service.HandleVolumeChange(0.1f, false);
+        service.HandleVolumeChange(0.2f, false);
+        service.HandleVolumeChange(0.3f, false);
+        service.HandleVolumeChange(0.5f, false);
+
+        // Wait for debounce to complete
+        await Task.Delay(debounceMs + 100);
+
+        // Assert - Only one webhook call should be made
+        _mockHomeAssistantClient.Verify(
+            c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleVolumeChange_AfterDebounceWindow_ShouldSendLatestValue()
+    {
+        // Arrange
+        var debounceMs = 100;
+        _mockConfiguration.Setup(c => c.DebounceTimer).Returns(debounceMs);
+        _mockHomeAssistantClient
+            .Setup(c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()))
+            .Returns(Task.CompletedTask);
+
+        var service = new VolumeWatcherService(
+            _mockLogger.Object,
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
+
+        // Act - Simulate volume changes, the last one should be sent
+        service.HandleVolumeChange(0.1f, false);  // 10%
+        service.HandleVolumeChange(0.5f, true);   // 50%, muted - this is the latest
+
+        // Wait for debounce to complete
+        await Task.Delay(debounceMs + 100);
+
+        // Assert - Should send the latest value (50%, muted)
+        _mockHomeAssistantClient.Verify(
+            c => c.SendVolumeUpdateAsync(50, true),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleVolumeChange_ShouldWaitForDebounceTimer()
+    {
+        // Arrange
+        var debounceMs = 200;
+        _mockConfiguration.Setup(c => c.DebounceTimer).Returns(debounceMs);
+        _mockHomeAssistantClient
+            .Setup(c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()))
+            .Returns(Task.CompletedTask);
+
+        var service = new VolumeWatcherService(
+            _mockLogger.Object,
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
+
+        // Act
+        service.HandleVolumeChange(0.5f, false);
+
+        // Assert - No call yet before debounce period
+        await Task.Delay(50); // Less than debounce time
+        _mockHomeAssistantClient.Verify(
+            c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()),
+            Times.Never);
+
+        // Wait for debounce to complete
+        await Task.Delay(debounceMs + 50);
+
+        // Assert - Call should be made after debounce period
+        _mockHomeAssistantClient.Verify(
+            c => c.SendVolumeUpdateAsync(50, false),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleVolumeChange_RapidChanges_ShouldResetDebounceTimer()
+    {
+        // Arrange
+        var debounceMs = 100;
+        _mockConfiguration.Setup(c => c.DebounceTimer).Returns(debounceMs);
+        _mockHomeAssistantClient
+            .Setup(c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()))
+            .Returns(Task.CompletedTask);
+
+        var service = new VolumeWatcherService(
+            _mockLogger.Object,
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
+
+        // Act - Send first volume change
+        service.HandleVolumeChange(0.2f, false);
+        
+        // Wait half the debounce time and send another change
+        await Task.Delay(50);
+        service.HandleVolumeChange(0.4f, false);
+
+        // Wait another half - at this point, if timer wasn't reset, 
+        // the first call would have fired (100ms from first change)
+        await Task.Delay(50);
+        
+        // Assert - No call should be made yet (timer was reset)
+        _mockHomeAssistantClient.Verify(
+            c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()),
+            Times.Never);
+
+        // Wait for debounce to complete from the second change
+        await Task.Delay(debounceMs);
+
+        // Assert - Now the call should be made with the latest value
+        _mockHomeAssistantClient.Verify(
+            c => c.SendVolumeUpdateAsync(40, false),
+            Times.Once);
+    }
+
+    [Fact]
+    public void HandleVolumeChange_WhenPaused_ShouldNotStartDebounce()
+    {
+        // Arrange
+        _mockConfiguration.Setup(c => c.DebounceTimer).Returns(100);
+
+        var service = new VolumeWatcherService(
+            _mockLogger.Object,
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
+
+        service.SetPaused(true);
+
+        // Act
+        service.HandleVolumeChange(0.5f, false);
+
+        // Assert - Should log debug message about skipping
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Debug,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("skipped")),
+                null,
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+
+        // No webhook call should be scheduled
+        _mockHomeAssistantClient.Verify(
+            c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task HandleVolumeChange_TimerDispose_ShouldBeSafeOnRapidChanges()
+    {
+        // Arrange
+        var debounceMs = 50;
+        _mockConfiguration.Setup(c => c.DebounceTimer).Returns(debounceMs);
+        _mockHomeAssistantClient
+            .Setup(c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()))
+            .Returns(Task.CompletedTask);
+
+        var service = new VolumeWatcherService(
+            _mockLogger.Object,
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
+
+        // Act - Simulate rapid changes that would trigger timer disposal
+        for (int i = 0; i <= 20; i++)
+        {
+            service.HandleVolumeChange(i / 20f, false);
+        }
+
+        // Wait for debounce to complete
+        await Task.Delay(debounceMs + 100);
+
+        // Assert - Should complete without throwing and only send one update
+        _mockHomeAssistantClient.Verify(
+            c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()),
+            Times.Once);
+
+        // Should send the last value (100%)
+        _mockHomeAssistantClient.Verify(
+            c => c.SendVolumeUpdateAsync(100, false),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleVolumeChange_SeparateDebounceWindows_ShouldSendMultipleUpdates()
+    {
+        // Arrange
+        var debounceMs = 100;
+        _mockConfiguration.Setup(c => c.DebounceTimer).Returns(debounceMs);
+        _mockHomeAssistantClient
+            .Setup(c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()))
+            .Returns(Task.CompletedTask);
+
+        var service = new VolumeWatcherService(
+            _mockLogger.Object,
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
+
+        // Act - First batch of changes
+        service.HandleVolumeChange(0.3f, false);
+        await Task.Delay(debounceMs + 50);
+
+        // Second batch of changes (after first debounce completed)
+        service.HandleVolumeChange(0.7f, true);
+        await Task.Delay(debounceMs + 50);
+
+        // Assert - Two separate calls should be made
+        _mockHomeAssistantClient.Verify(
+            c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()),
+            Times.Exactly(2));
+
+        _mockHomeAssistantClient.Verify(
+            c => c.SendVolumeUpdateAsync(30, false),
+            Times.Once);
+
+        _mockHomeAssistantClient.Verify(
+            c => c.SendVolumeUpdateAsync(70, true),
+            Times.Once);
+    }
+
+    [Fact]
+    public void Dispose_ShouldDisposeDebounceTimer()
+    {
+        // Arrange
+        _mockConfiguration.Setup(c => c.DebounceTimer).Returns(1000);
+        _mockHomeAssistantClient
+            .Setup(c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()))
+            .Returns(Task.CompletedTask);
+
+        var service = new VolumeWatcherService(
+            _mockLogger.Object,
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
+
+        // Start a debounce timer
+        service.HandleVolumeChange(0.5f, false);
+
+        // Act - Dispose before timer fires
+        service.Dispose();
+
+        // Assert - Timer should be disposed without throwing
+        // Multiple disposes should also be safe
+        service.Dispose();
+    }
+
+    #endregion
 }
 
