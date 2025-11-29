@@ -17,7 +17,7 @@ public class VolumeWatcherService : BackgroundService
     private MMDevice? _defaultDevice;
     private AudioEndpointVolumeNotificationDelegate? _volumeDelegate;
     private volatile bool _isPaused;
-    private System.Threading.Timer? _debounceTimer;
+    private CancellationTokenSource? _debounceCts;
     private float _lastVolumeScalar;
     private bool _lastMuteState;
     private readonly object _debounceLock = new object();
@@ -117,22 +117,36 @@ public class VolumeWatcherService : BackgroundService
         _logger.LogDebug("Volume change detected: {Volume}%, Muted: {Muted}",
             volumeScalar * 100, isMuted);
 
-        // Update the latest volume state and reset the debounce timer
+        // Update the latest volume state and reset the debounce
         lock (_debounceLock)
         {
             _lastVolumeScalar = volumeScalar;
             _lastMuteState = isMuted;
 
-            // Dispose existing timer if any
-            _debounceTimer?.Dispose();
-
-            // Create new timer that will fire after the configured wait period
+            // Cancel and dispose any pending debounce task using local reference
+            var previousCts = _debounceCts;
+            previousCts?.Cancel();
+            previousCts?.Dispose();
+            
+            _debounceCts = new CancellationTokenSource();
+            var token = _debounceCts.Token;
             var waitTime = _configuration.DebounceTimer;
-            _debounceTimer = new System.Threading.Timer(
-                _ => SendDebouncedVolumeUpdate(),
-                null,
-                waitTime,
-                Timeout.Infinite);
+
+            // Start a new debounce task with exception handling
+            _ = Task.Delay(waitTime, token).ContinueWith(t =>
+            {
+                if (!t.IsCanceled)
+                {
+                    try
+                    {
+                        SendDebouncedVolumeUpdate();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error in debounced volume update");
+                    }
+                }
+            }, TaskScheduler.Default);
         }
     }
 
@@ -175,7 +189,8 @@ public class VolumeWatcherService : BackgroundService
             _defaultDevice.AudioEndpointVolume.OnVolumeNotification -= _volumeDelegate;
         }
 
-        _debounceTimer?.Dispose();
+        _debounceCts?.Cancel();
+        _debounceCts?.Dispose();
         _defaultDevice?.Dispose();
         _deviceEnumerator?.Dispose();
 
