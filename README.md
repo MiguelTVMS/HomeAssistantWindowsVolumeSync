@@ -229,6 +229,47 @@ dotnet publish src/HomeAssistantWindowsVolumeSync -c Release -r win-x64 --self-c
 
 This generates the service executable and required files in the `publish/` output folder.
 
+## Windows SmartScreen Warning
+
+When you first run the application, Windows may display a **"Windows protected your PC"** SmartScreen warning. This is a normal security feature for applications that are not yet digitally signed.
+
+### Why This Happens
+
+- The application is not code-signed with a commercial certificate
+- Windows SmartScreen protects users from potentially unsafe downloads
+- This warning appears for all unsigned applications, including open-source software
+
+### How to Run the Application
+
+1. When you see the SmartScreen dialog, click **"More info"**
+2. Click **"Run anyway"**
+3. The application will start normally
+
+### About Security
+
+- This is **open-source software** - you can review all the code in this repository
+- The application only communicates with your Home Assistant instance (URL you configure)
+- No telemetry, no external connections, no data collection
+- The source code is available for security audits
+
+### For Advanced Users
+
+If you prefer, you can:
+
+1. **Build from source** - Clone this repository and build it yourself using the instructions below
+2. **Review the code** - Inspect all source files before building
+3. **Check releases** - All releases are built from tagged commits you can verify
+
+### Future Plans
+
+We are working on:
+
+- Building reputation with Windows SmartScreen over time
+- Potentially code-signing future releases (requires certificate investment)
+- Alternative distribution methods
+
+If you're comfortable with open-source software and have reviewed the code, you can safely run this application.
+
 ## Installing the Service on Windows
 
 1. Create a folder for the service:

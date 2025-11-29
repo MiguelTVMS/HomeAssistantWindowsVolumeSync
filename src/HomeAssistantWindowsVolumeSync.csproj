@@ -14,11 +14,10 @@
     <!-- Create tags like: v1.0.0, v1.2.3, etc. -->
     <MinVerTagPrefix>v</MinVerTagPrefix>
     <MinVerMinimumMajorMinor>1.0</MinVerMinimumMajorMinor>
-    <Authors>MiguelTVMS</Authors>
-    <Company>MiguelTVMS</Company>
+    <Authors>João Miguel Tabosa Vaz Marques Silva</Authors>
     <Product>Home Assistant Windows Volume Sync</Product>
     <Description>Synchronizes Windows system master volume with Home Assistant via webhooks</Description>
-    <Copyright>Copyright © 2025 MiguelTVMS</Copyright>
+    <Copyright>Copyright © 2025 João Miguel Tabosa Vaz Marques Silva</Copyright>
     <PackageProjectUrl>https://github.com/MiguelTVMS/HomeAssistantWindowsVolumeSync</PackageProjectUrl>
     <RepositoryUrl>https://github.com/MiguelTVMS/HomeAssistantWindowsVolumeSync</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
