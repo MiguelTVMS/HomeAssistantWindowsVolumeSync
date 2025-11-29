@@ -104,7 +104,7 @@ public class HomeAssistantClient : IHomeAssistantClient
     }
 
     /// <inheritdoc/>
-    public async Task<bool> CheckHealthAsync()
+    public async Task<bool> CheckHealthAsync(int? volumePercent = null, bool? isMuted = null)
     {
         if (string.IsNullOrEmpty(_webhookUrl))
         {
@@ -114,21 +114,50 @@ public class HomeAssistantClient : IHomeAssistantClient
 
         try
         {
-            // Send a minimal request to check if Home Assistant is reachable
-            // We use a HEAD request or a simple GET to avoid triggering automations
-            using var response = await _httpClient.GetAsync(_configuration.WebhookUrl, HttpCompletionOption.ResponseHeadersRead);
-
-            // Only 2XX status codes indicate a healthy connection
-            // 4XX/5XX errors mean something is wrong with the server or configuration
-            if (response.IsSuccessStatusCode)
+            // If volume data is provided, send it as a health check (keeps HA updated)
+            if (volumePercent.HasValue && isMuted.HasValue)
             {
-                _logger.LogDebug("Health check successful: Status {StatusCode}", response.StatusCode);
-                return true;
+                _logger.LogDebug("Health check: Sending current volume state (Volume: {Volume}%, Muted: {Muted})",
+                    volumePercent.Value, isMuted.Value);
+
+                var payload = new VolumePayload
+                {
+                    Volume = volumePercent.Value,
+                    Mute = isMuted.Value,
+                    TargetMediaPlayer = _targetMediaPlayer
+                };
+
+                using var response = await _httpClient.PostAsJsonAsync(_webhookUrl, payload);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogDebug("Health check successful: Status {StatusCode}", response.StatusCode);
+                    return true;
+                }
+                else
+                {
+                    _logger.LogWarning("Health check failed: Status {StatusCode}", response.StatusCode);
+                    return false;
+                }
             }
             else
             {
-                _logger.LogWarning("Health check failed: Status {StatusCode}", response.StatusCode);
-                return false;
+                // No volume data provided, just check connectivity with GET
+                // Webhooks return 405 (Method Not Allowed) for GET, but that's fine - it means the endpoint exists
+                using var response = await _httpClient.GetAsync(_webhookUrl, HttpCompletionOption.ResponseHeadersRead);
+
+                // 2XX status codes indicate success
+                // 405 (Method Not Allowed) also indicates the endpoint is reachable (webhooks don't support GET)
+                if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.MethodNotAllowed)
+                {
+                    _logger.LogDebug("Health check successful: Status {StatusCode}", response.StatusCode);
+                    return true;
+                }
+                else
+                {
+                    _logger.LogWarning("Health check failed: Status {StatusCode}", response.StatusCode);
+                    return false;
+                }
             }
         }
         catch (HttpRequestException ex)

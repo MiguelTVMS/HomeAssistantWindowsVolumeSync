@@ -12,6 +12,7 @@ public class HealthCheckService : IHealthCheckService, IHostedService, IDisposab
     private readonly ILogger<HealthCheckService> _logger;
     private readonly IHomeAssistantClient _homeAssistantClient;
     private readonly IAppConfiguration _configuration;
+    private readonly VolumeWatcherService _volumeWatcherService;
     private System.Threading.Timer? _healthCheckTimer;
     private int _consecutiveFailures;
     private bool _isConnected = true;
@@ -44,11 +45,13 @@ public class HealthCheckService : IHealthCheckService, IHostedService, IDisposab
     public HealthCheckService(
         ILogger<HealthCheckService> logger,
         IHomeAssistantClient homeAssistantClient,
-        IAppConfiguration configuration)
+        IAppConfiguration configuration,
+        VolumeWatcherService volumeWatcherService)
     {
         _logger = logger;
         _homeAssistantClient = homeAssistantClient;
         _configuration = configuration;
+        _volumeWatcherService = volumeWatcherService;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -82,7 +85,22 @@ public class HealthCheckService : IHealthCheckService, IHostedService, IDisposab
     {
         try
         {
-            var isHealthy = await _homeAssistantClient.CheckHealthAsync();
+            // Get current volume state to send with health check
+            var volumeState = _volumeWatcherService.GetCurrentVolumeState();
+
+            bool isHealthy;
+            if (volumeState.HasValue)
+            {
+                // Send current volume as part of health check
+                isHealthy = await _homeAssistantClient.CheckHealthAsync(
+                    volumeState.Value.volumePercent,
+                    volumeState.Value.isMuted);
+            }
+            else
+            {
+                // No volume data available, just check connectivity
+                isHealthy = await _homeAssistantClient.CheckHealthAsync();
+            }
 
             lock (_stateLock)
             {

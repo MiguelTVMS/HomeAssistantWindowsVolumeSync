@@ -15,7 +15,10 @@ public interface IHomeAssistantClient
 
     /// <summary>
     /// Performs a health check to verify connection to Home Assistant.
+    /// Optionally sends current volume state to keep Home Assistant updated.
     /// </summary>
+    /// <param name="volumePercent">Optional volume level from 0 to 100.</param>
+    /// <param name="isMuted">Optional mute state.</param>
     /// <returns>True if the connection is healthy, false otherwise.</returns>
-    Task<bool> CheckHealthAsync();
+    Task<bool> CheckHealthAsync(int? volumePercent = null, bool? isMuted = null);
 }

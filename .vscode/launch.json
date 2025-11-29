@@ -24,7 +24,7 @@
       "program": "dotnet",
       "args": [
         "test",
-        "${workspaceFolder}/tests/HomeAssistantWindowsVolumeSync.Tests/HomeAssistantWindowsVolumeSync.Tests.csproj",
+        "${workspaceFolder}\\tests\\HomeAssistantWindowsVolumeSync.Tests.csproj",
         "--logger:console;verbosity=detailed"
       ],
       "cwd": "${workspaceFolder}",
@@ -39,7 +39,7 @@
       "program": "dotnet",
       "args": [
         "test",
-        "${workspaceFolder}/tests/HomeAssistantWindowsVolumeSync.Tests/HomeAssistantWindowsVolumeSync.Tests.csproj",
+        "${workspaceFolder}\\tests\\HomeAssistantWindowsVolumeSync.Tests.csproj",
         "--filter",
         "FullyQualifiedName~${fileBasenameNoExtension}",
         "--logger:console;verbosity=detailed"

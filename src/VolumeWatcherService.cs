@@ -41,6 +41,31 @@ public class VolumeWatcherService : BackgroundService
         _logger.LogInformation("Volume watcher {Status}", isPaused ? "paused" : "resumed");
     }
 
+    /// <summary>
+    /// Gets the current volume state.
+    /// </summary>
+    /// <returns>Tuple containing (volume percent, is muted), or null if no audio device available.</returns>
+    public virtual (int volumePercent, bool isMuted)? GetCurrentVolumeState()
+    {
+        if (_defaultDevice?.AudioEndpointVolume == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var volumeScalar = _defaultDevice.AudioEndpointVolume.MasterVolumeLevelScalar;
+            var isMuted = _defaultDevice.AudioEndpointVolume.Mute;
+            var volumePercent = (int)Math.Round(volumeScalar * 100);
+            return (volumePercent, isMuted);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to get current volume state");
+            return null;
+        }
+    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("VolumeWatcherService is starting...");

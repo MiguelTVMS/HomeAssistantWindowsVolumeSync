@@ -542,6 +542,28 @@ public class HomeAssistantClientTests
         Assert.True(result);
     }
 
+    [Fact]
+    public async Task CheckHealthAsync_WithMethodNotAllowed_ReturnsTrue()
+    {
+        // Arrange - Webhooks return 405 for GET requests, but that indicates the endpoint exists
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(() => new HttpResponseMessage(HttpStatusCode.MethodNotAllowed));
+
+        using var httpClient = new HttpClient(handlerMock.Object);
+        var client = new HomeAssistantClient(httpClient, _loggerMock.Object, _configuration);
+
+        // Act
+        var result = await client.CheckHealthAsync();
+
+        // Assert
+        Assert.True(result);
+    }
+
     [Theory]
     [InlineData(HttpStatusCode.BadRequest)]
     [InlineData(HttpStatusCode.Unauthorized)]
@@ -613,6 +635,57 @@ public class HomeAssistantClientTests
 
         // Assert
         Assert.False(result);
+    }
+
+    [Fact]
+    public async Task ConfigurationReload_UpdatesBothSendAndHealthCheckUrls()
+    {
+        // Arrange - Create mock configuration that simulates reload behavior
+        var mockConfig = new Mock<IAppConfiguration>();
+        mockConfig.Setup(c => c.WebhookUrl).Returns("https://old-ha.local");
+        mockConfig.Setup(c => c.WebhookPath).Returns("/api/webhook/");
+        mockConfig.Setup(c => c.WebhookId).Returns("test_webhook");
+        mockConfig.Setup(c => c.FullWebhookUrl).Returns("https://old-ha.local/api/webhook/test_webhook");
+
+        string? sendUrlUsed = null;
+        string? healthCheckUrlUsed = null;
+
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>((req, ct) =>
+            {
+                // Capture which URL is being used
+                if (req.Method == HttpMethod.Post)
+                    sendUrlUsed = req.RequestUri?.ToString();
+                else if (req.Method == HttpMethod.Get)
+                    healthCheckUrlUsed = req.RequestUri?.ToString();
+            })
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+
+        using var httpClient = new HttpClient(handlerMock.Object);
+        var client = new HomeAssistantClient(httpClient, _loggerMock.Object, mockConfig.Object);
+
+        // Update mock to return new values
+        mockConfig.Setup(c => c.WebhookUrl).Returns("https://new-ha.local");
+        mockConfig.Setup(c => c.FullWebhookUrl).Returns("https://new-ha.local/api/webhook/test_webhook");
+
+        // Simulate configuration reload by raising the event
+        mockConfig.Raise(c => c.ConfigurationReloaded += null, EventArgs.Empty);
+
+        // Give the event handler time to process
+        await Task.Delay(100);
+
+        // Act - Call both methods after configuration reload
+        await client.SendVolumeUpdateAsync(50, false);
+        await client.CheckHealthAsync();
+
+        // Assert - Both should use the same new full webhook URL (cached in the client after reload event)
+        Assert.Equal("https://new-ha.local/api/webhook/test_webhook", sendUrlUsed);
+        Assert.Equal("https://new-ha.local/api/webhook/test_webhook", healthCheckUrlUsed);
     }
 }
 

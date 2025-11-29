@@ -23,6 +23,8 @@ public class SystemTrayService : BackgroundService
     private ToolStripMenuItem? _connectionStatusMenuItem;
     private bool _isPaused;
     private bool _isDisposed;
+    private SettingsForm? _settingsForm;
+    private Form? _statusDialog;
 
     public SystemTrayService(
         ILogger<SystemTrayService> logger,
@@ -257,11 +259,36 @@ public class SystemTrayService : BackgroundService
 
     private void ShowStatusDialog()
     {
+        // Check if status dialog is already open
+        if (_statusDialog != null && !_statusDialog.IsDisposed)
+        {
+            _logger.LogInformation("Status dialog is already open, bringing it to front");
+
+            // Bring the existing dialog to the front
+            if (_statusDialog.InvokeRequired)
+            {
+                _statusDialog.BeginInvoke(new Action(() =>
+                {
+                    _statusDialog.WindowState = FormWindowState.Normal;
+                    _statusDialog.BringToFront();
+                    _statusDialog.Activate();
+                }));
+            }
+            else
+            {
+                _statusDialog.WindowState = FormWindowState.Normal;
+                _statusDialog.BringToFront();
+                _statusDialog.Activate();
+            }
+
+            return;
+        }
+
         var status = _isPaused ? "Paused" : "Running";
         var connectionStatus = _healthCheckService?.IsConnected == true ? "Connected" : "Error";
 
         // Create a custom dialog with Windows standard layout
-        using var statusDialog = new Form
+        _statusDialog = new Form
         {
             Text = "Volume Sync Status",
             ClientSize = new System.Drawing.Size(400, 150),
@@ -272,6 +299,17 @@ public class SystemTrayService : BackgroundService
             Padding = new Padding(12) // Standard Windows dialog padding
         };
 
+        // Handle form closing to clear the reference
+        _statusDialog.FormClosed += (s, args) =>
+        {
+            _logger.LogInformation("Status dialog closed");
+            if (_statusDialog != null)
+            {
+                _statusDialog.Dispose();
+                _statusDialog = null;
+            }
+        };
+
         // Add icon (standard Windows layout)
         var iconPictureBox = new PictureBox
         {
@@ -279,7 +317,7 @@ public class SystemTrayService : BackgroundService
             SizeMode = PictureBoxSizeMode.AutoSize,
             Location = new System.Drawing.Point(12, 12)
         };
-        statusDialog.Controls.Add(iconPictureBox);
+        _statusDialog.Controls.Add(iconPictureBox);
 
         // Add status label with proper spacing from icon
         var statusLabel = new Label
@@ -289,7 +327,7 @@ public class SystemTrayService : BackgroundService
             Top = 12,
             AutoSize = true
         };
-        statusDialog.Controls.Add(statusLabel);
+        _statusDialog.Controls.Add(statusLabel);
 
         // Create button panel at bottom with standard Windows layout
         var buttonPanel = new FlowLayoutPanel
@@ -301,7 +339,7 @@ public class SystemTrayService : BackgroundService
             AutoSize = true,
             WrapContents = false
         };
-        statusDialog.Controls.Add(buttonPanel);
+        _statusDialog.Controls.Add(buttonPanel);
 
         // Add Close button (rightmost, standard Windows size)
         var closeButton = new Button
@@ -328,7 +366,7 @@ public class SystemTrayService : BackgroundService
         buttonPanel.Controls.Add(settingsButton);
 
         // Show dialog and handle result
-        var result = statusDialog.ShowDialog();
+        var result = _statusDialog.ShowDialog();
         if (result == DialogResult.Yes)
         {
             // User clicked Settings, open settings dialog
@@ -342,13 +380,49 @@ public class SystemTrayService : BackgroundService
 
         try
         {
+            // Check if settings form is already open
+            if (_settingsForm != null && !_settingsForm.IsDisposed)
+            {
+                _logger.LogInformation("Settings form is already open, bringing it to front");
+
+                // Bring the existing form to the front
+                if (_settingsForm.InvokeRequired)
+                {
+                    _settingsForm.BeginInvoke(new Action(() =>
+                    {
+                        _settingsForm.WindowState = FormWindowState.Normal;
+                        _settingsForm.BringToFront();
+                        _settingsForm.Activate();
+                    }));
+                }
+                else
+                {
+                    _settingsForm.WindowState = FormWindowState.Normal;
+                    _settingsForm.BringToFront();
+                    _settingsForm.Activate();
+                }
+
+                return;
+            }
+
             var settingsManagerLogger = _serviceProvider.GetRequiredService<ILogger<SettingsManager>>();
             var settingsManager = new SettingsManager(_configuration, settingsManagerLogger);
-            using var settingsForm = new SettingsForm(
+            _settingsForm = new SettingsForm(
                 _configuration,
                 (url, id, player) => settingsManager.SaveSettings(url, id, player));
 
-            var result = settingsForm.ShowDialog();
+            // Handle form closing to clear the reference
+            _settingsForm.FormClosed += (s, args) =>
+            {
+                _logger.LogInformation("Settings form closed");
+                if (_settingsForm != null)
+                {
+                    _settingsForm.Dispose();
+                    _settingsForm = null;
+                }
+            };
+
+            var result = _settingsForm.ShowDialog();
 
             if (result == DialogResult.OK)
             {
@@ -519,6 +593,34 @@ public class SystemTrayService : BackgroundService
         if (_healthCheckService != null)
         {
             _healthCheckService.ConnectionStateChanged -= OnConnectionStateChanged;
+        }
+
+        // Dispose settings form if it's still open
+        if (_settingsForm != null && !_settingsForm.IsDisposed)
+        {
+            try
+            {
+                _settingsForm.Close();
+                _settingsForm.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Error disposing settings form");
+            }
+        }
+
+        // Dispose status dialog if it's still open
+        if (_statusDialog != null && !_statusDialog.IsDisposed)
+        {
+            try
+            {
+                _statusDialog.Close();
+                _statusDialog.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Error disposing status dialog");
+            }
         }
 
         if (_notifyIcon != null)
