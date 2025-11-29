@@ -10,6 +10,11 @@ public class SettingsForm : Form
     private readonly IAppConfiguration _configuration;
     private readonly Action<string, string, string> _saveSettings;
 
+    private static readonly System.Drawing.Font _labelFont = new System.Drawing.Font("Segoe UI", 9F);
+    private static readonly System.Drawing.Font _textBoxFont = new System.Drawing.Font("Segoe UI", 9F);
+    private static readonly System.Drawing.Font _buttonFont = new System.Drawing.Font("Segoe UI", 9F);
+    private static readonly System.Drawing.Font _boldButtonFont = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+
     private TextBox _webhookUrlTextBox = null!;
     private TextBox _webhookIdTextBox = null!;
     private TextBox _targetMediaPlayerTextBox = null!;
@@ -35,7 +40,7 @@ public class SettingsForm : Form
         // Form settings
         Text = "Home Assistant Volume Sync - Settings";
         Width = 600;
-        Height = 370;
+        Height = 330;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
@@ -55,7 +60,8 @@ public class SettingsForm : Form
             Text = "Home Assistant URL:",
             Left = 20,
             Top = 20,
-            Width = 200
+            Width = 200,
+            Font = _labelFont
         };
         Controls.Add(_webhookUrlLabel);
 
@@ -65,7 +71,7 @@ public class SettingsForm : Form
             Left = 20,
             Top = 45,
             Width = 540,
-            Font = new System.Drawing.Font("Segoe UI", 9F),
+            Font = _textBoxFont,
             PlaceholderText = "https://your-home-assistant-url"
         };
         Controls.Add(_webhookUrlTextBox);
@@ -76,7 +82,8 @@ public class SettingsForm : Form
             Text = "Webhook ID:",
             Left = 20,
             Top = 80,
-            Width = 200
+            Width = 200,
+            Font = _labelFont
         };
         Controls.Add(_webhookIdLabel);
 
@@ -86,7 +93,7 @@ public class SettingsForm : Form
             Left = 20,
             Top = 105,
             Width = 540,
-            Font = new System.Drawing.Font("Segoe UI", 9F),
+            Font = _textBoxFont,
             PlaceholderText = "homeassistant_windows_volume_sync"
         };
         _toolTip.SetToolTip(_webhookIdTextBox,
@@ -100,7 +107,8 @@ public class SettingsForm : Form
             Text = "Target Media Player Entity ID:",
             Left = 20,
             Top = 140,
-            Width = 200
+            Width = 200,
+            Font = _labelFont
         };
         Controls.Add(_targetMediaPlayerLabel);
 
@@ -110,7 +118,8 @@ public class SettingsForm : Form
             Left = 20,
             Top = 165,
             Width = 540,
-            Font = new System.Drawing.Font("Segoe UI", 9F)
+            Font = _textBoxFont,
+            PlaceholderText = "media_player.your_media_player"
         };
         Controls.Add(_targetMediaPlayerTextBox);
 
@@ -121,45 +130,59 @@ public class SettingsForm : Form
             Left = 20,
             Top = 200,
             Width = 540,
-            Font = new System.Drawing.Font("Segoe UI", 9F)
+            Font = _textBoxFont
         };
         Controls.Add(_runOnStartupCheckBox);
 
-        // Save Button
-        _saveButton = new Button
+        // Create button panel at bottom with Windows standard layout (matching status screen)
+        var buttonPanel = new FlowLayoutPanel
         {
-            Text = "Save",
-            Left = 380,
-            Top = 270,
-            Width = 80,
-            DialogResult = DialogResult.OK
+            FlowDirection = FlowDirection.RightToLeft,
+            Dock = DockStyle.Bottom,
+            Width = ClientSize.Width,
+            Padding = new Padding(0, 0, 20, 10), // Standard button panel padding
+            AutoSize = true,
+            WrapContents = false,
         };
-        _saveButton.Click += OnSaveClick;
-        Controls.Add(_saveButton);
+        Controls.Add(buttonPanel);
 
-        // Cancel Button
-        _cancelButton = new Button
-        {
-            Text = "Cancel",
-            Left = 480,
-            Top = 270,
-            Width = 80,
-            DialogResult = DialogResult.Cancel
-        };
-        Controls.Add(_cancelButton);
-
-        // Help Button
+        // Help Button (leftmost, with same padding as right buttons)
         _helpButton = new Button
         {
             Text = "?",
-            Left = 20,
-            Top = 270,
-            Width = 40,
-            Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold)
+            AutoSize = false,
+            Width = 30,
+            Height = 30,
+            Font = _boldButtonFont,
         };
         _helpButton.Click += OnHelpClick;
         _toolTip.SetToolTip(_helpButton, "Home Assistant Installation Instructions");
-        Controls.Add(_helpButton);
+        buttonPanel.Controls.Add(_helpButton);
+
+        // Cancel Button (rightmost, standard Windows size)
+        _cancelButton = new Button
+        {
+            Text = "Cancel",
+            DialogResult = DialogResult.Cancel,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new System.Drawing.Size(75, 30),
+            Font = _buttonFont
+        };
+        buttonPanel.Controls.Add(_cancelButton);
+
+        // Save Button (standard Windows size, 6px gap)
+        _saveButton = new Button
+        {
+            Text = "Save",
+            DialogResult = DialogResult.OK,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new System.Drawing.Size(75, 30),
+            Font = _buttonFont
+        };
+        _saveButton.Click += OnSaveClick;
+        buttonPanel.Controls.Add(_saveButton);
 
         AcceptButton = _saveButton;
         CancelButton = _cancelButton;
@@ -270,7 +293,8 @@ public class SettingsForm : Form
             "Would you like to open the installation guide in your browser?",
             "Home Assistant Installation Help",
             MessageBoxButtons.YesNo,
-            MessageBoxIcon.Information);
+            MessageBoxIcon.Information,
+            MessageBoxDefaultButton.Button2);
 
         if (result == DialogResult.Yes)
         {

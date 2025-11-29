@@ -7,6 +7,22 @@
     <UserSecretsId>dotnet-HomeAssistantWindowsVolumeSync-f9c1b1c8-1a1a-4a1a-8a1a-1a1a1a1a1a1a</UserSecretsId>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>app.ico</ApplicationIcon>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    
+    <!-- Application Information -->
+    <!-- Version is automatically calculated from Git tags by MinVer -->
+    <!-- Create tags like: v1.0.0, v1.2.3, etc. -->
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+    <MinVerMinimumMajorMinor>1.0</MinVerMinimumMajorMinor>
+    <Authors>MiguelTVMS</Authors>
+    <Company>MiguelTVMS</Company>
+    <Product>Home Assistant Windows Volume Sync</Product>
+    <Description>Synchronizes Windows system master volume with Home Assistant via webhooks</Description>
+    <Copyright>Copyright © 2025 MiguelTVMS</Copyright>
+    <PackageProjectUrl>https://github.com/MiguelTVMS/HomeAssistantWindowsVolumeSync</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/MiguelTVMS/HomeAssistantWindowsVolumeSync</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <!-- Use Exe for Debug builds (shows console), WinExe for Release builds (no console) -->
@@ -22,6 +38,10 @@
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.0" />
+    <PackageReference Include="MinVer" Version="6.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="NAudio" Version="2.2.1" />
   </ItemGroup>
 
@@ -30,6 +50,12 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="app.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="app-offline.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="app-offline.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="appsettings.json">

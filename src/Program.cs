@@ -71,6 +71,11 @@ try
     builder.Services.AddSingleton<VolumeWatcherService>();
     builder.Services.AddHostedService(provider => provider.GetRequiredService<VolumeWatcherService>());
 
+    // Register the health check service
+    builder.Services.AddSingleton<HealthCheckService>();
+    builder.Services.AddSingleton<IHealthCheckService>(provider => provider.GetRequiredService<HealthCheckService>());
+    builder.Services.AddHostedService(provider => provider.GetRequiredService<HealthCheckService>());
+
     // Register the system tray service
     builder.Services.AddHostedService<SystemTrayService>();
 

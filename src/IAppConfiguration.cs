@@ -46,6 +46,26 @@ public interface IAppConfiguration
     bool StrictTLS { get; }
 
     /// <summary>
+    /// Gets the time in milliseconds to wait after the last volume event before sending the webhook request.
+    /// This debounces rapid volume changes to avoid flooding Home Assistant with requests.
+    /// Defaults to 100ms.
+    /// </summary>
+    int DebounceTimer { get; }
+
+    /// <summary>
+    /// Gets the interval in milliseconds between health checks to Home Assistant.
+    /// Health checks verify the connection is still active.
+    /// Defaults to 5000ms (5 seconds).
+    /// </summary>
+    int HealthCheckTimer { get; }
+
+    /// <summary>
+    /// Gets the number of consecutive health check failures before marking the connection as disconnected.
+    /// Defaults to 3.
+    /// </summary>
+    int HealthCheckRetries { get; }
+
+    /// <summary>
     /// Reloads the configuration from the configuration source.
     /// This is called after settings are saved to apply changes immediately.
     /// </summary>

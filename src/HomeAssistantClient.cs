@@ -86,7 +86,7 @@ public class HomeAssistantClient : IHomeAssistantClient
                 TargetMediaPlayer = _targetMediaPlayer
             };
 
-            var response = await _httpClient.PostAsJsonAsync(_webhookUrl, payload);
+            using var response = await _httpClient.PostAsJsonAsync(_webhookUrl, payload);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -100,6 +100,80 @@ public class HomeAssistantClient : IHomeAssistantClient
         catch (TaskCanceledException ex)
         {
             _logger.LogWarning(ex, "Request to Home Assistant timed out");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<bool> CheckHealthAsync(int? volumePercent = null, bool? isMuted = null)
+    {
+        if (string.IsNullOrEmpty(_webhookUrl))
+        {
+            _logger.LogDebug("Cannot check health: Webhook URL is not configured");
+            return false;
+        }
+
+        try
+        {
+            // If volume data is provided, send it as a health check (keeps HA updated)
+            if (volumePercent.HasValue && isMuted.HasValue)
+            {
+                _logger.LogDebug("Health check: Sending current volume state (Volume: {Volume}%, Muted: {Muted})",
+                    volumePercent.Value, isMuted.Value);
+
+                var payload = new VolumePayload
+                {
+                    Volume = volumePercent.Value,
+                    Mute = isMuted.Value,
+                    TargetMediaPlayer = _targetMediaPlayer
+                };
+
+                using var response = await _httpClient.PostAsJsonAsync(_webhookUrl, payload);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogDebug("Health check successful: Status {StatusCode}", response.StatusCode);
+                    return true;
+                }
+                else
+                {
+                    _logger.LogWarning("Health check failed: Status {StatusCode}", response.StatusCode);
+                    return false;
+                }
+            }
+            else
+            {
+                // No volume data provided, just check connectivity with GET
+                // Webhooks return 405 (Method Not Allowed) for GET, but that's fine - it means the endpoint exists
+                using var response = await _httpClient.GetAsync(_webhookUrl, HttpCompletionOption.ResponseHeadersRead);
+
+                // 2XX status codes indicate success
+                // 405 (Method Not Allowed) also indicates the endpoint is reachable (webhooks don't support GET)
+                if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.MethodNotAllowed)
+                {
+                    _logger.LogDebug("Health check successful: Status {StatusCode}", response.StatusCode);
+                    return true;
+                }
+                else
+                {
+                    _logger.LogWarning("Health check failed: Status {StatusCode}", response.StatusCode);
+                    return false;
+                }
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogDebug(ex, "Health check failed: HTTP request error");
+            return false;
+        }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogDebug(ex, "Health check failed: Request timed out");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Health check failed: Unexpected error");
+            return false;
         }
     }
 

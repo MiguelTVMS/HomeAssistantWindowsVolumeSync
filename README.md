@@ -63,7 +63,7 @@ You must create a Home Assistant automation that responds to a webhook and sets 
    - Read the JSON body `{ "volume": <number>, "mute": <boolean>, "target_media_player": <string> }`
    - Convert volume to 0.0–1.0 (the number is 0–100)
    - Use the `target_media_player` from the payload (or default to your media player)
-   - Call `media_player.volume_set`
+   - Call `media_player.your_media_player`
 
 After creating the automation, your webhook URL becomes:
 
@@ -109,25 +109,52 @@ HomeAssistantWindowsVolumeSync/
 
 ## Configuration
 
-The application can be configured through the Settings window (right-click system tray icon → Settings):
+The application provides two ways to configure settings:
 
-- **Home Assistant URL**: Your Home Assistant base URL (e.g., `https://your-home-assistant-url`)
-- **Webhook ID**: The webhook identifier (default: `homeassistant_windows_volume_sync`)
-- **Target Media Player**: Your media player entity ID (e.g., `media_player.speaker`)
+### Configuration Availability
 
-Alternatively, you can edit `appsettings.json` directly:
+| Setting | Settings Window | appsettings.json | Description |
+|---------|:---------------:|:----------------:|-------------|
+| **Home Assistant URL** | ✓ | ✓ | Your Home Assistant base URL (e.g., `https://your-home-assistant-url`) |
+| **Webhook ID** | ✓ | ✓ | The webhook identifier (default: `homeassistant_windows_volume_sync`) |
+| **Target Media Player** | ✓ | ✓ | Your media player entity ID (e.g., `media_player.your_media_player`) |
+| **Run on Startup** | ✓ | | Enable/disable automatic startup with Windows |
+| **Webhook Path** | | ✓ | API webhook path (default: `/api/webhook/`) |
+| **Strict TLS** | | ✓ | Enable/disable strict TLS certificate validation (default: `true`) |
+| **Debounce Timer** | | ✓ | Time in milliseconds to wait after the last volume change before sending the update (default: `100`) |
+| **Health Check Timer** | | ✓ | Interval in milliseconds between connection health checks (default: `5000` - 5 seconds) |
+| **Health Check Retries** | | ✓ | Number of consecutive health check failures before marking as disconnected (default: `3`) |
+
+**Settings Window** (right-click system tray icon → Settings):
+
+- Provides a user-friendly interface for common settings
+- Changes are saved automatically and applied immediately
+- Best for general configuration
+
+**appsettings.json** (manual editing):
+
+- Allows access to all settings including advanced options
+- Requires manual file editing
+- Best for advanced configuration and fine-tuning
+
+**Note:** Changes made through the Settings window are saved automatically and applied immediately.
+
+### Configuration Example (appsettings.json)
 
 ```json
 {
   "HomeAssistant": {
     "WebhookUrl": "https://your-home-assistant-url",
+    "WebhookPath": "/api/webhook/",
     "WebhookId": "homeassistant_windows_volume_sync",
-    "TargetMediaPlayer": "media_player.speaker"
+    "TargetMediaPlayer": "media_player.your_media_player",
+    "StrictTLS": true,
+    "DebounceTimer": 100,
+    "HealthCheckTimer": 5000,
+    "HealthCheckRetries": 3
   }
 }
 ```
-
-**Note:** Changes made through the Settings window are saved automatically and applied immediately.
 
 ### Logging Configuration
 

@@ -7,7 +7,7 @@
       "type": "process",
       "args": [
         "build",
-        "${workspaceFolder}/src/HomeAssistantWindowsVolumeSync.csproj",
+        "${workspaceFolder}\\src\\HomeAssistantWindowsVolumeSync.csproj",
         "/property:GenerateFullPaths=true",
         "/consoleloggerparameters:NoSummary"
       ],
@@ -23,7 +23,7 @@
       "type": "process",
       "args": [
         "publish",
-        "${workspaceFolder}/src/HomeAssistantWindowsVolumeSync.csproj",
+        "${workspaceFolder}\\src\\HomeAssistantWindowsVolumeSync.csproj",
         "-c",
         "Release",
         "-r",
@@ -31,7 +31,7 @@
         "--self-contained",
         "false",
         "-o",
-        "${workspaceFolder}/publish"
+        "${workspaceFolder}\\publish"
       ],
       "problemMatcher": "$msCompile"
     },
@@ -43,7 +43,7 @@
         "watch",
         "run",
         "--project",
-        "${workspaceFolder}/src/HomeAssistantWindowsVolumeSync.csproj"
+        "${workspaceFolder}\\src\\HomeAssistantWindowsVolumeSync.csproj"
       ],
       "problemMatcher": "$msCompile"
     },
@@ -53,7 +53,7 @@
       "type": "process",
       "args": [
         "test",
-        "${workspaceFolder}/tests/HomeAssistantWindowsVolumeSync.Tests/HomeAssistantWindowsVolumeSync.Tests.csproj",
+        "${workspaceFolder}\\tests\\HomeAssistantWindowsVolumeSync.Tests.csproj",
         "/property:GenerateFullPaths=true",
         "/consoleloggerparameters:NoSummary"
       ],
