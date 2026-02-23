@@ -40,6 +40,13 @@ public interface IAppConfiguration
     string? TargetMediaPlayer { get; }
 
     /// <summary>
+    /// Gets the friendly name of the audio device to monitor for volume changes.
+    /// When null or empty, the system default audio device is used.
+    /// Example: "Speakers (Realtek High Definition Audio)"
+    /// </summary>
+    string? SelectedAudioDevice { get; }
+
+    /// <summary>
     /// Gets whether strict TLS validation is enabled.
     /// Defaults to true for security.
     /// </summary>

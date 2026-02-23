@@ -390,7 +390,7 @@ public class VolumeWatcherServiceTests
 
         // Act - Send first volume change
         service.HandleVolumeChange(0.2f, false);
-        
+
         // Wait half the debounce time and send another change
         await Task.Delay(50);
         service.HandleVolumeChange(0.4f, false);
@@ -398,7 +398,7 @@ public class VolumeWatcherServiceTests
         // Wait another half - at this point, if timer wasn't reset, 
         // the first call would have fired (100ms from first change)
         await Task.Delay(50);
-        
+
         // Assert - No call should be made yet (timer was reset)
         _mockHomeAssistantClient.Verify(
             c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()),
@@ -543,5 +543,127 @@ public class VolumeWatcherServiceTests
     }
 
     #endregion
-}
 
+    #region Duplicate Suppression Tests
+
+    [Fact]
+    public async Task HandleVolumeChange_SameValueTwice_ShouldSendOnlyOnce()
+    {
+        // Arrange
+        var debounceMs = 100;
+        _mockConfiguration.Setup(c => c.DebounceTimer).Returns(debounceMs);
+        _mockHomeAssistantClient
+            .Setup(c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()))
+            .Returns(Task.CompletedTask);
+
+        var service = new VolumeWatcherService(
+            _mockLogger.Object,
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
+
+        // Act - First change settles
+        service.HandleVolumeChange(0.5f, false);
+        await Task.Delay(debounceMs + 100);
+
+        // Second notification with identical value (Windows re-fires with no real change)
+        service.HandleVolumeChange(0.5f, false);
+        await Task.Delay(debounceMs + 100);
+
+        // Assert - Only one HTTP call because the second event carried no new value
+        _mockHomeAssistantClient.Verify(
+            c => c.SendVolumeUpdateAsync(50, false),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleVolumeChange_DifferentValueAfterSame_ShouldSendBoth()
+    {
+        // Arrange
+        var debounceMs = 100;
+        _mockConfiguration.Setup(c => c.DebounceTimer).Returns(debounceMs);
+        _mockHomeAssistantClient
+            .Setup(c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()))
+            .Returns(Task.CompletedTask);
+
+        var service = new VolumeWatcherService(
+            _mockLogger.Object,
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
+
+        // Act - First change
+        service.HandleVolumeChange(0.5f, false);
+        await Task.Delay(debounceMs + 100);
+
+        // Second change with a genuinely different volume
+        service.HandleVolumeChange(0.7f, false);
+        await Task.Delay(debounceMs + 100);
+
+        // Assert - Both should be sent
+        _mockHomeAssistantClient.Verify(
+            c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()),
+            Times.Exactly(2));
+        _mockHomeAssistantClient.Verify(c => c.SendVolumeUpdateAsync(50, false), Times.Once);
+        _mockHomeAssistantClient.Verify(c => c.SendVolumeUpdateAsync(70, false), Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleVolumeChange_MuteChangeOnly_ShouldSend()
+    {
+        // Arrange
+        var debounceMs = 100;
+        _mockConfiguration.Setup(c => c.DebounceTimer).Returns(debounceMs);
+        _mockHomeAssistantClient
+            .Setup(c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()))
+            .Returns(Task.CompletedTask);
+
+        var service = new VolumeWatcherService(
+            _mockLogger.Object,
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
+
+        // Act - Unmuted
+        service.HandleVolumeChange(0.5f, false);
+        await Task.Delay(debounceMs + 100);
+
+        // Same volume but now muted – must still send
+        service.HandleVolumeChange(0.5f, true);
+        await Task.Delay(debounceMs + 100);
+
+        // Assert
+        _mockHomeAssistantClient.Verify(
+            c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()),
+            Times.Exactly(2));
+        _mockHomeAssistantClient.Verify(c => c.SendVolumeUpdateAsync(50, false), Times.Once);
+        _mockHomeAssistantClient.Verify(c => c.SendVolumeUpdateAsync(50, true), Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleVolumeChange_RepeatedIdenticalNotifications_ShouldSendOnlyFirstOne()
+    {
+        // Arrange
+        var debounceMs = 100;
+        _mockConfiguration.Setup(c => c.DebounceTimer).Returns(debounceMs);
+        _mockHomeAssistantClient
+            .Setup(c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()))
+            .Returns(Task.CompletedTask);
+
+        var service = new VolumeWatcherService(
+            _mockLogger.Object,
+            _mockHomeAssistantClient.Object,
+            _mockConfiguration.Object);
+
+        // Act - Windows fires the same notification 5 times in a row (no real change)
+        for (var i = 0; i < 5; i++)
+        {
+            service.HandleVolumeChange(0.4f, false);
+            await Task.Delay(debounceMs + 50);
+        }
+
+        // Assert - Only the very first one should result in an HTTP call
+        _mockHomeAssistantClient.Verify(
+            c => c.SendVolumeUpdateAsync(40, false),
+            Times.Once);
+    }
+
+    #endregion
+}

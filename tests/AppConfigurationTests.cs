@@ -477,4 +477,63 @@ public class AppConfigurationTests
         Assert.Equal("media_player.test", appConfig.TargetMediaPlayer);
         Assert.False(appConfig.StrictTLS);
     }
+
+    [Fact]
+    public void SelectedAudioDevice_ReturnsConfiguredValue()
+    {
+        // Arrange
+        var configData = new Dictionary<string, string?>
+        {
+            { "HomeAssistant:SelectedAudioDevice", "Speakers (Realtek High Definition Audio)" }
+        };
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        var appConfig = new AppConfiguration(configuration);
+
+        // Act
+        var selectedAudioDevice = appConfig.SelectedAudioDevice;
+
+        // Assert
+        Assert.Equal("Speakers (Realtek High Definition Audio)", selectedAudioDevice);
+    }
+
+    [Fact]
+    public void SelectedAudioDevice_ReturnsNull_WhenNotConfigured()
+    {
+        // Arrange
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>())
+            .Build();
+
+        var appConfig = new AppConfiguration(configuration);
+
+        // Act
+        var selectedAudioDevice = appConfig.SelectedAudioDevice;
+
+        // Assert
+        Assert.Null(selectedAudioDevice);
+    }
+
+    [Fact]
+    public void SelectedAudioDevice_ReturnsEmptyString_WhenConfiguredAsEmpty()
+    {
+        // Arrange
+        var configData = new Dictionary<string, string?>
+        {
+            { "HomeAssistant:SelectedAudioDevice", "" }
+        };
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        var appConfig = new AppConfiguration(configuration);
+
+        // Act
+        var selectedAudioDevice = appConfig.SelectedAudioDevice;
+
+        // Assert
+        Assert.Equal("", selectedAudioDevice);
+    }
 }

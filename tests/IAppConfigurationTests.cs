@@ -220,6 +220,38 @@ public class IAppConfigurationTests
     }
 
     [Fact]
+    public void IAppConfiguration_HasSelectedAudioDeviceProperty()
+    {
+        // Arrange
+        var configData = new Dictionary<string, string?>
+        {
+            { "HomeAssistant:SelectedAudioDevice", "Speakers (Test Device)" }
+        };
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        IAppConfiguration appConfig = new AppConfiguration(configuration);
+
+        // Act & Assert
+        Assert.Equal("Speakers (Test Device)", appConfig.SelectedAudioDevice);
+    }
+
+    [Fact]
+    public void IAppConfiguration_SelectedAudioDevice_ReturnsNull_WhenNotSet()
+    {
+        // Arrange
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>())
+            .Build();
+
+        IAppConfiguration appConfig = new AppConfiguration(configuration);
+
+        // Act & Assert
+        Assert.Null(appConfig.SelectedAudioDevice);
+    }
+
+    [Fact]
     public void IAppConfiguration_Implementation_IsReusable()
     {
         // Arrange

@@ -175,6 +175,7 @@ public class SettingsManagerTests : IDisposable
     _mockConfiguration.Setup(c => c.WebhookUrl).Returns("https://test.local");
     _mockConfiguration.Setup(c => c.WebhookId).Returns("test_webhook");
     _mockConfiguration.Setup(c => c.TargetMediaPlayer).Returns("media_player.test");
+    _mockConfiguration.Setup(c => c.SelectedAudioDevice).Returns("");
 
     var settingsManager = CreateSettingsManager();
 
@@ -304,5 +305,52 @@ public class SettingsManagerTests : IDisposable
   private SettingsManager CreateSettingsManagerWithoutConfig()
   {
     return new SettingsManager(_testSettingsFile, null, null);
+  }
+
+  [Fact]
+  public void SaveSettings_PersistsSelectedAudioDevice_WhenProvided()
+  {
+    // Arrange
+    File.WriteAllText(_testSettingsFile, "{}");
+    var settingsManager = CreateSettingsManager();
+    var audioDevice = "Speakers (Realtek High Definition Audio)";
+
+    // Act
+    settingsManager.SaveSettings("https://test.local", "test_webhook", "media_player.test", audioDevice);
+
+    // Assert
+    var json = File.ReadAllText(_testSettingsFile);
+    Assert.Contains("SelectedAudioDevice", json);
+    Assert.Contains(audioDevice, json);
+  }
+
+  [Fact]
+  public void SaveSettings_PersistsEmptySelectedAudioDevice_WhenDefaultDevice()
+  {
+    // Arrange
+    File.WriteAllText(_testSettingsFile, "{}");
+    var settingsManager = CreateSettingsManager();
+
+    // Act
+    settingsManager.SaveSettings("https://test.local", "test_webhook", "media_player.test", "");
+
+    // Assert
+    var json = File.ReadAllText(_testSettingsFile);
+    Assert.Contains("SelectedAudioDevice", json);
+  }
+
+  [Fact]
+  public void SaveSettings_SelectedAudioDeviceDefaultsToEmpty()
+  {
+    // Arrange
+    File.WriteAllText(_testSettingsFile, "{}");
+    var settingsManager = CreateSettingsManager();
+
+    // Act - call without selectedAudioDevice (uses default "")
+    settingsManager.SaveSettings("https://test.local", "test_webhook", "media_player.test");
+
+    // Assert
+    var json = File.ReadAllText(_testSettingsFile);
+    Assert.Contains("SelectedAudioDevice", json);
   }
 }

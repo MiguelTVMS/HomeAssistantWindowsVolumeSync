@@ -21,6 +21,10 @@ public class VolumeWatcherService : BackgroundService
     private float _lastVolumeScalar;
     private bool _lastMuteState;
     private readonly object _debounceLock = new object();
+    // Tracks the last value actually sent to Home Assistant so identical
+    // repeat notifications (Windows fires them even with no real change) are suppressed.
+    private int _lastSentVolumePercent = -1;  // -1 = never sent
+    private bool _lastSentMuteState;
 
     public VolumeWatcherService(
         ILogger<VolumeWatcherService> logger,
@@ -72,18 +76,49 @@ public class VolumeWatcherService : BackgroundService
 
         try
         {
-            // Initialize the device enumerator and get the default audio endpoint
+            // Initialize the device enumerator and get the configured (or default) audio endpoint
             _deviceEnumerator = new MMDeviceEnumerator();
 
-            try
+            var selectedDevice = _configuration.SelectedAudioDevice;
+
+            if (!string.IsNullOrEmpty(selectedDevice))
             {
-                _defaultDevice = _deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                // Try to find the device by friendly name
+                try
+                {
+                    var allDevices = _deviceEnumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active);
+                    _defaultDevice = allDevices.FirstOrDefault(d => d.FriendlyName == selectedDevice);
+
+                    if (_defaultDevice == null)
+                    {
+                        _logger.LogWarning("Configured audio device '{Device}' not found. Falling back to system default.", selectedDevice);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Using configured audio device: {Device}", selectedDevice);
+                    }
+                }
+                catch (System.Runtime.InteropServices.COMException ex)
+                {
+                    _logger.LogWarning(ex, "Failed to enumerate audio devices. Falling back to system default.");
+                    _defaultDevice = null;
+                }
             }
-            catch (System.Runtime.InteropServices.COMException ex) when (ex.HResult == unchecked((int)0x80070490))
+
+            // Fall back to the system default device if no specific device was found
+            if (_defaultDevice == null)
             {
-                // Element not found - no audio device available
-                _logger.LogWarning("No default audio endpoint found. Service will continue but volume monitoring is disabled.");
-                _defaultDevice = null;
+                try
+                {
+                    _defaultDevice = _deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                    _logger.LogInformation("Using system default audio device.");
+                }
+                catch (System.Runtime.InteropServices.COMException ex) when (ex.HResult == unchecked((int)0x80070490))
+                {
+                    // Element not found - no audio device available
+                    _logger.LogWarning("No default audio endpoint found. Service will continue but volume monitoring is disabled.");
+                    _defaultDevice = null;
+                }
             }
 
             if (_defaultDevice?.AudioEndpointVolume != null)
@@ -196,6 +231,17 @@ public class VolumeWatcherService : BackgroundService
         {
             // Convert to 0-100 scale as expected by the webhook
             var volumePercent = (int)Math.Round(volumeScalar * 100);
+
+            // Suppress duplicate sends: Windows fires notifications even when
+            // nothing has changed (e.g. another app reads the volume level).
+            if (volumePercent == _lastSentVolumePercent && isMuted == _lastSentMuteState)
+            {
+                _logger.LogDebug("Volume update suppressed (no change): {Volume}%, Muted: {Muted}", volumePercent, isMuted);
+                return;
+            }
+
+            _lastSentVolumePercent = volumePercent;
+            _lastSentMuteState = isMuted;
 
             await _homeAssistantClient.SendVolumeUpdateAsync(volumePercent, isMuted);
 

@@ -30,11 +30,11 @@ public class SettingsManager
     /// <summary>
     /// Saves the Home Assistant settings to appsettings.json and reloads configuration
     /// </summary>
-    public void SaveSettings(string webhookUrl, string webhookId, string targetMediaPlayer)
+    public void SaveSettings(string webhookUrl, string webhookId, string targetMediaPlayer, string selectedAudioDevice = "")
     {
         _logger?.LogInformation("Saving settings to {FilePath}", _settingsFilePath);
-        _logger?.LogDebug("New settings - WebhookUrl: {Url}, WebhookId: {Id}, TargetMediaPlayer: {Player}",
-            webhookUrl, webhookId, targetMediaPlayer);
+        _logger?.LogDebug("New settings - WebhookUrl: {Url}, WebhookId: {Id}, TargetMediaPlayer: {Player}, SelectedAudioDevice: {Device}",
+            webhookUrl, webhookId, targetMediaPlayer, selectedAudioDevice);
 
         // Read the current settings file or create empty object if doesn't exist
         var json = File.Exists(_settingsFilePath) ? File.ReadAllText(_settingsFilePath) : "{}";
@@ -63,6 +63,7 @@ public class SettingsManager
                 homeAssistantSettings["WebhookUrl"] = webhookUrl;
                 homeAssistantSettings["WebhookId"] = webhookId;
                 homeAssistantSettings["TargetMediaPlayer"] = targetMediaPlayer;
+                homeAssistantSettings["SelectedAudioDevice"] = selectedAudioDevice;
 
                 settings[property.Name] = homeAssistantSettings;
             }
@@ -82,6 +83,7 @@ public class SettingsManager
                 ["WebhookPath"] = "/api/webhook/",
                 ["WebhookId"] = webhookId,
                 ["TargetMediaPlayer"] = targetMediaPlayer,
+                ["SelectedAudioDevice"] = selectedAudioDevice,
                 ["StrictTLS"] = true  // Default to secure
             };
         }
@@ -114,7 +116,8 @@ public class SettingsManager
             {
                 if (string.Equals(_appConfiguration.WebhookUrl, webhookUrl, StringComparison.Ordinal) &&
                     string.Equals(_appConfiguration.WebhookId, webhookId, StringComparison.Ordinal) &&
-                    string.Equals(_appConfiguration.TargetMediaPlayer, targetMediaPlayer, StringComparison.Ordinal))
+                    string.Equals(_appConfiguration.TargetMediaPlayer, targetMediaPlayer, StringComparison.Ordinal) &&
+                    string.Equals(_appConfiguration.SelectedAudioDevice ?? "", selectedAudioDevice, StringComparison.Ordinal))
                 {
                     configUpdated = true;
                     break;
@@ -126,13 +129,13 @@ public class SettingsManager
 
             if (configUpdated)
             {
-                _logger?.LogInformation("Configuration reloaded. New values - WebhookUrl: {Url}, WebhookId: {Id}, TargetMediaPlayer: {Player}",
-                    _appConfiguration.WebhookUrl, _appConfiguration.WebhookId, _appConfiguration.TargetMediaPlayer);
+                _logger?.LogInformation("Configuration reloaded. New values - WebhookUrl: {Url}, WebhookId: {Id}, TargetMediaPlayer: {Player}, SelectedAudioDevice: {Device}",
+                    _appConfiguration.WebhookUrl, _appConfiguration.WebhookId, _appConfiguration.TargetMediaPlayer, _appConfiguration.SelectedAudioDevice);
             }
             else
             {
-                _logger?.LogWarning("Configuration reload timed out. Values may not be updated yet. WebhookUrl: {Url}, WebhookId: {Id}, TargetMediaPlayer: {Player}",
-                    _appConfiguration.WebhookUrl, _appConfiguration.WebhookId, _appConfiguration.TargetMediaPlayer);
+                _logger?.LogWarning("Configuration reload timed out. Values may not be updated yet. WebhookUrl: {Url}, WebhookId: {Id}, TargetMediaPlayer: {Player}, SelectedAudioDevice: {Device}",
+                    _appConfiguration.WebhookUrl, _appConfiguration.WebhookId, _appConfiguration.TargetMediaPlayer, _appConfiguration.SelectedAudioDevice);
             }
         }
         else

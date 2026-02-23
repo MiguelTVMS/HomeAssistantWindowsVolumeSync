@@ -58,6 +58,9 @@ public class AppConfiguration : IAppConfiguration
     public string? TargetMediaPlayer => _configuration["HomeAssistant:TargetMediaPlayer"];
 
     /// <inheritdoc/>
+    public string? SelectedAudioDevice => _configuration["HomeAssistant:SelectedAudioDevice"];
+
+    /// <inheritdoc/>
     public bool StrictTLS => _configuration.GetValue<bool>("HomeAssistant:StrictTLS", true);
 
     /// <inheritdoc/>
