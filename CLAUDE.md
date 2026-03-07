@@ -12,6 +12,54 @@ HomeAssistantWindowsVolumeSync is a Windows system tray application that synchro
 - **HTTP Client**: `System.Net.Http` with `IHttpClientFactory`
 - **Testing**: xUnit with Moq for mocking
 
+## Branching Strategy (GitFlow)
+
+This repository follows **GitFlow**. All branches must be created accordingly — no exceptions.
+
+### Permanent branches
+
+| Branch | Purpose |
+|--------|---------|
+| `main` | Production-ready releases only. Never commit directly. |
+| `develop` | Integration branch. All feature/fix work merges here first. |
+
+### Working branches
+
+| Type | Pattern | Branch from | Merges into |
+|------|---------|-------------|-------------|
+| Feature | `feature/<short-description>` | `develop` | `develop` |
+| Bug fix | `fix/<short-description>` | `develop` | `develop` |
+| Release | `release/<version>` | `develop` | `main` + `develop` |
+| Hotfix | `hotfix/<short-description>` | `main` | `main` + `develop` |
+
+### Rules
+
+- **Never commit directly to `main` or `develop`** — always work on a branch and open a PR
+- Feature branches off `develop`, not `main`
+- Hotfixes are the only branches allowed to branch off `main` (production emergencies only)
+- Release branches are used to prepare a version — bump version, update changelog, final QA — then merge to both `main` and `develop`
+- Delete branches after merging
+
+### Examples
+
+```bash
+# New feature
+git checkout develop
+git checkout -b feature/add-wix-installer
+
+# Bug fix
+git checkout develop
+git checkout -b fix/tray-icon-leak-on-disconnect
+
+# Hotfix on production
+git checkout main
+git checkout -b hotfix/crash-on-missing-appsettings
+
+# Release prep
+git checkout develop
+git checkout -b release/1.2.0
+```
+
 ## Coding Conventions
 
 ### General Guidelines
