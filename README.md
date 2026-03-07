@@ -1,7 +1,7 @@
 # HomeAssistantWindowsVolumeSync
 
-HomeAssistantWindowsVolumeSync is a lightweight Windows service that synchronizes the **Windows system master volume** with a **Home Assistant** media player.
-Whenever the volume changes in Windows, the service detects it and sends the updated value to a Home Assistant webhook in real time.
+HomeAssistantWindowsVolumeSync is a lightweight Windows tray application that synchronizes the **Windows system master volume** with a **Home Assistant** media player.
+Whenever the volume changes in Windows, the application detects it and sends the updated value to a Home Assistant webhook in real time.
 
 This allows Windows hardware volume keys, app volume sliders, and external volume knobs to directly control your media player volume through Home Assistant.
 
@@ -10,10 +10,10 @@ This allows Windows hardware volume keys, app volume sliders, and external volum
 - **Event-driven volume detection** - no polling, near-zero CPU usage
 - **Instant sync** - volume changes are sent immediately to Home Assistant
 - **System tray integration** - convenient pause/resume controls from the taskbar
-- **Native Windows Service** - runs in the background, starts automatically
-- **Configurable** - easy webhook endpoint configuration
+- **Starts automatically with Windows** - runs in the background via the Windows startup registry
+- **Configurable** - easy webhook endpoint configuration via the Settings window
 - **Universal compatibility** - works with any Home Assistant media player
-- **Modern architecture** - built using .NET 8 Worker Service
+- **Modern architecture** - built using .NET 8 with Windows Forms
 
 ## System Tray Icon
 
@@ -49,7 +49,6 @@ This creates both `app.ico` and `app.png` files in the `src` directory. The PNG 
 
 - Windows 11 or later
 - .NET 8 Runtime or newer (or use self-contained deployment)
-- Administrator privileges for service installation
 
 ## Home Assistant Setup
 
@@ -213,7 +212,7 @@ The service supports comprehensive logging with different log levels and outputs
 - Event Viewer logs: Open Event Viewer → Windows Logs → Application → Filter by source "HomeAssistant Windows Volume Sync"
 - Startup errors: Check `startup-error.log` file in the application directory if service fails to start
 
-## Building the Service
+## Building the Application
 
 ### Build for Development
 
@@ -227,7 +226,7 @@ dotnet build src/HomeAssistantWindowsVolumeSync/HomeAssistantWindowsVolumeSync.c
 dotnet publish src/HomeAssistantWindowsVolumeSync -c Release -r win-x64 --self-contained false -o publish
 ```
 
-This generates the service executable and required files in the `publish/` output folder.
+This generates the application executable and required files in the `publish/` output folder.
 
 ## Windows SmartScreen Warning
 
@@ -270,53 +269,33 @@ We are working on:
 
 If you're comfortable with open-source software and have reviewed the code, you can safely run this application.
 
-## Installing the Service on Windows
+## Installing on Windows
 
-1. Create a folder for the service:
+> **Note:** This is a system tray application — it does **not** install as a Windows Service.
+> Autostart is managed via the Windows startup registry (`HKCU\...\Run`), exactly like other tray apps.
+> No administrator privileges or PowerShell commands are required.
 
-```powershell
-New-Item -ItemType Directory -Path "C:\Services\HomeAssistantWindowsVolumeSync" -Force
-```
+1. Extract the release zip to a permanent folder, for example:
 
-2. Copy the contents of the `publish` folder into this directory.
+   ```
+   C:\Program Files\HomeAssistantWindowsVolumeSync\
+   ```
 
-3. Update `appsettings.json` with your Home Assistant webhook URL.
+2. Run `HomeAssistantWindowsVolumeSync.exe`.
 
-4. Install the service:
+3. Right-click the tray icon in the taskbar notification area and select **Settings**.
 
-```powershell
-New-Service -Name "HomeAssistantWindowsVolumeSync" `
-            -BinaryPathName "`"C:\Services\HomeAssistantWindowsVolumeSync\HomeAssistantWindowsVolumeSync.exe`"" `
-            -DisplayName "HomeAssistant Windows Volume Sync" `
-            -Description "Syncs Windows master volume to Home Assistant via webhook" `
-            -StartupType Automatic
-```
+4. Fill in your **Home Assistant URL**, **Webhook ID**, and **Target Media Player** entity ID.
 
-5. Start the service:
+5. Check **"Run when Windows starts"** to enable autostart.
 
-```powershell
-Start-Service HomeAssistantWindowsVolumeSync
-```
+6. Click **Save**. You're done.
 
-## Uninstalling the Service
+## Uninstalling
 
-1. Stop the service:
-
-```powershell
-Stop-Service HomeAssistantWindowsVolumeSync
-```
-
-2. Remove the service:
-
-```powershell
-Remove-Service HomeAssistantWindowsVolumeSync
-```
-
-If `Remove-Service` is unavailable in your PowerShell version, use:
-
-```powershell
-sc.exe delete HomeAssistantWindowsVolumeSync
-```
+1. Right-click the tray icon → **Exit** to stop the application.
+2. In the **Settings** window, uncheck **"Run when Windows starts"** and save — this removes the autostart registry entry.
+3. Delete the installation folder.
 
 ## Running Tests
 
@@ -351,7 +330,7 @@ dotnet test tests/HomeAssistantWindowsVolumeSync.Tests/HomeAssistantWindowsVolum
 
 ### Building and Debugging
 
-Press `F5` in VS Code to build and run the service in debug mode.
+Press `F5` in VS Code to build and run the application in debug mode.
 
 ## License
 
