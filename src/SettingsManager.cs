@@ -13,7 +13,7 @@ public class SettingsManager
     private readonly ILogger<SettingsManager>? _logger;
 
     public SettingsManager(IAppConfiguration? appConfiguration = null, ILogger<SettingsManager>? logger = null)
-        : this(Path.Combine(AppContext.BaseDirectory, "appsettings.json"), appConfiguration, logger)
+        : this(ConfigurationPaths.GetUserConfigFilePath(), appConfiguration, logger)
     {
     }
 

@@ -18,7 +18,19 @@ if (Environment.UserInteractive)
 
 try
 {
+    // Ensure %APPDATA%\HomeAssistantWindowsVolumeSync\appsettings.json exists.
+    // Seeds it from the default shipped config on first run.
+    ConfigurationPaths.EnsureUserConfigExists();
+
     var builder = Host.CreateApplicationBuilder(args);
+
+    // Load user config from %APPDATA% — overrides the base appsettings.json shipped
+    // with the application. This allows the app to be installed to a read-only location
+    // (e.g. Program Files) while still persisting user settings correctly.
+    builder.Configuration.AddJsonFile(
+        ConfigurationPaths.GetUserConfigFilePath(),
+        optional: true,
+        reloadOnChange: true);
 
     // Configure logging from appsettings.json
     builder.Logging.ClearProviders();
