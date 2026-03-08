@@ -8,6 +8,11 @@ on:
       - "src/**"
       - "tests/**"
       - "*.sln"
+      - "CLAUDE.md"
+      - "AGENTS.md"
+      - ".github/copilot-instructions.md"
+      - ".github/AGENTS.md"
+      - "scripts/validate-symlinks.sh"
       - ".github/workflows/pull-request.yml"
   workflow_dispatch:
 
@@ -16,7 +21,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  validate-symlinks:
+    name: Validate AI instruction symlinks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check symlinks
+        run: bash scripts/validate-symlinks.sh
+
   build-and-test:
+    needs: validate-symlinks
     runs-on: windows-latest
     permissions:
       contents: read

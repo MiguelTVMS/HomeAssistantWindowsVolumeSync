@@ -12,6 +12,22 @@ HomeAssistantWindowsVolumeSync is a Windows system tray application that synchro
 - **HTTP Client**: `System.Net.Http` with `IHttpClientFactory`
 - **Testing**: xUnit with Moq for mocking
 
+## First-Time Setup (per clone)
+
+After cloning, activate the pre-commit hook that validates AI instruction symlinks:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+This prevents accidental commits that break `AGENTS.md`, `.github/copilot-instructions.md`, or `.github/AGENTS.md` — all of which must remain symlinks pointing to `CLAUDE.md`.
+
+To run the validation manually at any time:
+
+```bash
+bash scripts/validate-symlinks.sh
+```
+
 ## Branching Strategy (GitFlow)
 
 This repository follows **GitFlow**. All branches must be created accordingly — no exceptions.
