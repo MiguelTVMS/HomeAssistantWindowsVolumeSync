@@ -15,9 +15,6 @@ public class SettingsManager
     public SettingsManager(IAppConfiguration? appConfiguration = null, ILogger<SettingsManager>? logger = null)
         : this(ConfigurationPaths.GetUserConfigFilePath(), appConfiguration, logger)
     {
-        // Ensure the %APPDATA% config directory exists so SaveSettings never throws
-        // DirectoryNotFoundException when using the default (production) path.
-        ConfigurationPaths.EnsureUserConfigExists();
     }
 
     /// <summary>
@@ -38,6 +35,12 @@ public class SettingsManager
         _logger?.LogInformation("Saving settings to {FilePath}", _settingsFilePath);
         _logger?.LogDebug("New settings - WebhookUrl: {Url}, WebhookId: {Id}, TargetMediaPlayer: {Player}",
             webhookUrl, webhookId, targetMediaPlayer);
+
+        // Ensure the parent directory exists (e.g. %APPDATA%\HomeAssistantWindowsVolumeSync\)
+        // before writing. Doing this at write-time keeps the constructor side-effect free.
+        var directory = Path.GetDirectoryName(_settingsFilePath);
+        if (!string.IsNullOrEmpty(directory))
+            Directory.CreateDirectory(directory);
 
         // Read the current settings file or create empty object if doesn't exist
         var json = File.Exists(_settingsFilePath) ? File.ReadAllText(_settingsFilePath) : "{}";

@@ -41,7 +41,7 @@ try
     // Insert before the first EnvironmentVariables source (after all shipped JSON files).
     var envVarIndex = sources
         .Select((s, i) => (s, i))
-        .Where(x => x.s.GetType().Name.StartsWith("EnvironmentVariables", StringComparison.Ordinal))
+        .Where(x => x.s is Microsoft.Extensions.Configuration.EnvironmentVariables.EnvironmentVariablesConfigurationSource)
         .Select(x => (int?)x.i)
         .FirstOrDefault() ?? sources.Count;
 

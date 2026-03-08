@@ -303,8 +303,9 @@ public class SettingsManagerTests : IDisposable
     // to the executable, so the app works correctly when installed to a protected
     // location such as Program Files.
     //
-    // We assert via reflection on the private _settingsFilePath field so this test
-    // is fully hermetic — no filesystem writes, no risk of altering real user config.
+    // We assert via reflection on the private _settingsFilePath field.
+    // The default constructor is side-effect free (no filesystem writes), so this
+    // test is fully hermetic and does not alter the real user config on disk.
     var manager = new SettingsManager();
 
     var field = typeof(SettingsManager)
