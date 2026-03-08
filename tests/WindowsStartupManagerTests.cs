@@ -18,7 +18,7 @@ public class WindowsStartupManagerTests : IDisposable
         CleanupStartupEntry();
     }
 
-    [Fact]
+    [WindowsFact]
     public void IsStartupEnabled_WhenNotRegistered_ReturnsFalse()
     {
         // Arrange
@@ -31,7 +31,7 @@ public class WindowsStartupManagerTests : IDisposable
         Assert.False(result);
     }
 
-    [Fact]
+    [WindowsFact]
     public void EnableStartup_CreatesRegistryEntry()
     {
         // Arrange
@@ -51,7 +51,7 @@ public class WindowsStartupManagerTests : IDisposable
         CleanupStartupEntry();
     }
 
-    [Fact]
+    [WindowsFact]
     public void IsStartupEnabled_AfterEnable_ReturnsTrue()
     {
         // Arrange
@@ -68,7 +68,7 @@ public class WindowsStartupManagerTests : IDisposable
         CleanupStartupEntry();
     }
 
-    [Fact]
+    [WindowsFact]
     public void DisableStartup_RemovesRegistryEntry()
     {
         // Arrange
@@ -84,7 +84,7 @@ public class WindowsStartupManagerTests : IDisposable
         Assert.Null(value);
     }
 
-    [Fact]
+    [WindowsFact]
     public void IsStartupEnabled_AfterDisable_ReturnsFalse()
     {
         // Arrange
@@ -99,7 +99,7 @@ public class WindowsStartupManagerTests : IDisposable
         Assert.False(result);
     }
 
-    [Fact]
+    [WindowsFact]
     public void DisableStartup_WhenNotEnabled_DoesNotThrow()
     {
         // Arrange
@@ -110,7 +110,7 @@ public class WindowsStartupManagerTests : IDisposable
         Assert.Null(exception);
     }
 
-    [Fact]
+    [WindowsFact]
     public void EnableStartup_MultipleTimes_DoesNotThrow()
     {
         // Arrange
@@ -132,7 +132,7 @@ public class WindowsStartupManagerTests : IDisposable
         CleanupStartupEntry();
     }
 
-    [Fact]
+    [WindowsFact]
     public void EnableStartup_SetsQuotedExecutablePath()
     {
         // Arrange
@@ -152,7 +152,7 @@ public class WindowsStartupManagerTests : IDisposable
         CleanupStartupEntry();
     }
 
-    [Fact]
+    [WindowsFact]
     public void DisableStartup_AfterEnable_CompletelyRemovesEntry()
     {
         // Arrange

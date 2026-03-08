@@ -229,6 +229,27 @@ dotnet test HomeAssistantWindowsVolumeSync.sln --verbosity normal
 dotnet publish src -c Release -r win-x64 --self-contained false -o publish
 ```
 
+## Test Playlists
+
+Tests are tagged with `[WindowsFact]` / `[WindowsTheory]` when they require Windows APIs (Registry, WinForms, NAudio). This enables filter-based playlists:
+
+```bash
+# All tests (Windows only — net8.0-windows requires Windows runtime)
+dotnet test HomeAssistantWindowsVolumeSync.sln
+
+# Windows-specific tests only
+dotnet test HomeAssistantWindowsVolumeSync.sln --filter "Category=Windows"
+
+# Cross-platform tests only (skip Windows-specific)
+dotnet test HomeAssistantWindowsVolumeSync.sln --filter "Category!=Windows"
+```
+
+**Windows-only test files** (tagged with `[WindowsFact]`/`[WindowsTheory]`):
+- `WindowsStartupManagerTests.cs` — Registry
+- `IWindowsStartupManagerTests.cs` — Registry
+- `SystemTrayServiceTests.cs` — WinForms / NotifyIcon
+- `VolumeWatcherServiceTests.cs` — NAudio / Core Audio API
+
 ## Platform Constraints
 
 This project targets `net8.0-windows`. The `Microsoft.WindowsDesktop.App` runtime only exists on Windows, so:

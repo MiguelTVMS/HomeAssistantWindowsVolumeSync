@@ -34,7 +34,7 @@ public class IWindowsStartupManagerTests : IDisposable
         }
     }
 
-    [Fact]
+    [WindowsFact]
     public void WindowsStartupManager_HasIsStartupEnabledMethod()
     {
         // Arrange & Act
@@ -48,7 +48,7 @@ public class IWindowsStartupManagerTests : IDisposable
         Assert.Empty(methodInfo.GetParameters());
     }
 
-    [Fact]
+    [WindowsFact]
     public void WindowsStartupManager_HasEnableStartupMethod()
     {
         // Arrange & Act
@@ -62,7 +62,7 @@ public class IWindowsStartupManagerTests : IDisposable
         Assert.Empty(methodInfo.GetParameters());
     }
 
-    [Fact]
+    [WindowsFact]
     public void WindowsStartupManager_HasDisableStartupMethod()
     {
         // Arrange & Act
@@ -76,7 +76,7 @@ public class IWindowsStartupManagerTests : IDisposable
         Assert.Empty(methodInfo.GetParameters());
     }
 
-    [Fact]
+    [WindowsFact]
     public void WindowsStartupManager_IsStaticClass()
     {
         // Arrange & Act
@@ -86,7 +86,7 @@ public class IWindowsStartupManagerTests : IDisposable
         Assert.True(type.IsAbstract && type.IsSealed, "WindowsStartupManager should be a static class");
     }
 
-    [Fact]
+    [WindowsFact]
     public void WindowsStartupManager_HasExpectedPublicMethods()
     {
         // Arrange
@@ -102,7 +102,7 @@ public class IWindowsStartupManagerTests : IDisposable
         Assert.Contains(methods, m => m.Name == nameof(WindowsStartupManager.DisableStartup));
     }
 
-    [Fact]
+    [WindowsFact]
     public void IsStartupEnabled_CanBeCalledWithoutException()
     {
         // Act & Assert
@@ -110,7 +110,7 @@ public class IWindowsStartupManagerTests : IDisposable
         Assert.Null(exception);
     }
 
-    [Fact]
+    [WindowsFact]
     public void EnableStartup_CanBeCalledWithoutException()
     {
         // Act & Assert - Try to enable (may fail in test environment but shouldn't throw in normal cases)
@@ -129,7 +129,7 @@ public class IWindowsStartupManagerTests : IDisposable
         Assert.True(true);
     }
 
-    [Fact]
+    [WindowsFact]
     public void DisableStartup_CanBeCalledWithoutException()
     {
         // Act & Assert
@@ -139,7 +139,7 @@ public class IWindowsStartupManagerTests : IDisposable
         Assert.Null(exception);
     }
 
-    [Fact]
+    [WindowsFact]
     public void WindowsStartupManager_MethodsAreConsistent()
     {
         // Arrange - Clean state
