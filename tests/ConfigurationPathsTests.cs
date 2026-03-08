@@ -129,4 +129,20 @@ public class ConfigurationPathsTests : IDisposable
         Assert.True(File.Exists(_userConfigFilePath));
         Assert.Single(Directory.GetFiles(_userConfigDirectory));
     }
+
+    // ---------------------------------------------------------------------------
+    // Public EnsureUserConfigExists() — production overload coverage
+    // ---------------------------------------------------------------------------
+
+    [Fact]
+    public void EnsureUserConfigExists_PublicOverload_CreatesUserConfigDirectory()
+    {
+        // The public overload must create the real %APPDATA% directory and config file.
+        // We verify this without writing test data — just assert the directory and file
+        // exist after calling it (idempotent: safe to call when config already exists).
+        ConfigurationPaths.EnsureUserConfigExists();
+
+        Assert.True(Directory.Exists(ConfigurationPaths.GetUserConfigDirectory()));
+        Assert.True(File.Exists(ConfigurationPaths.GetUserConfigFilePath()));
+    }
 }
