@@ -41,24 +41,6 @@ try
     // Add debug logging (outputs to debugger window)
     builder.Logging.AddDebug();
 
-    // Add file logging for persistent logs.
-    // Use %LOCALAPPDATA% so the log directory is always writable, even when the
-    // app is installed to a protected location such as Program Files.
-    var logPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "HomeAssistantWindowsVolumeSync",
-        "logs");
-    try
-    {
-        Directory.CreateDirectory(logPath);
-    }
-    catch (UnauthorizedAccessException)
-    {
-        // Non-fatal: fall back to a temp directory if the preferred path is inaccessible.
-        logPath = Path.Combine(Path.GetTempPath(), "HomeAssistantWindowsVolumeSync", "logs");
-        Directory.CreateDirectory(logPath);
-    }
-
     // Register the centralized application configuration
     builder.Services.AddSingleton<IAppConfiguration>(provider =>
     {

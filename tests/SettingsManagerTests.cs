@@ -310,23 +310,25 @@ public class SettingsManagerTests : IDisposable
     Assert.Contains("HomeAssistantWindowsVolumeSync", expectedFile);
     Assert.EndsWith("appsettings.json", expectedFile, StringComparison.OrdinalIgnoreCase);
 
-    // Verify the default constructor actually wires up to that path by observing
-    // that SaveSettings writes to it (use a fresh manager with no mock config).
-    var manager = new SettingsManager();
-    manager.SaveSettings("https://test.appdata", "test_id", "media_player.test");
+    // Back up any pre-existing real config so this test is hermetic: a developer
+    // running the suite locally won't lose their actual settings.
+    string? originalContent = File.Exists(expectedFile) ? File.ReadAllText(expectedFile) : null;
 
     try
     {
+      var manager = new SettingsManager();
+      manager.SaveSettings("https://test.appdata", "test_id", "media_player.test");
+
       Assert.True(File.Exists(expectedFile));
       var contents = File.ReadAllText(expectedFile);
       Assert.Contains("https://test.appdata", contents);
     }
     finally
     {
-      // Clean up: restore or delete the written file so we don't pollute %APPDATA%
-      // across test runs. If the file existed before, we can't restore it here — but
-      // for CI (clean environment) deletion is safe.
-      if (File.Exists(expectedFile))
+      // Restore original content if it existed, otherwise delete the file we created.
+      if (originalContent is not null)
+        File.WriteAllText(expectedFile, originalContent);
+      else if (File.Exists(expectedFile))
         File.Delete(expectedFile);
     }
   }
