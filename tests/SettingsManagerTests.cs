@@ -297,40 +297,28 @@ public class SettingsManagerTests : IDisposable
   }
 
   [Fact]
-  public void DefaultConstructor_WritesToAppDataPath()
+  public void DefaultConstructor_UsesAppDataPath()
   {
-    // The default constructor must write settings to %APPDATA%, not next to the
-    // executable — so the app functions correctly when installed to a protected
+    // The default constructor must resolve the config path to %APPDATA%, not next
+    // to the executable, so the app works correctly when installed to a protected
     // location such as Program Files.
+    //
+    // We assert via reflection on the private _settingsFilePath field so this test
+    // is fully hermetic — no filesystem writes, no risk of altering real user config.
+    var manager = new SettingsManager();
+
+    var field = typeof(SettingsManager)
+      .GetField("_settingsFilePath", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+    Assert.NotNull(field);
+
+    var actualPath = field!.GetValue(manager) as string;
     var appDataDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-    var expectedFile = ConfigurationPaths.GetUserConfigFilePath();
+    var expectedPath = ConfigurationPaths.GetUserConfigFilePath();
 
-    // Verify the path itself resolves under %APPDATA%
-    Assert.StartsWith(appDataDir, expectedFile, StringComparison.OrdinalIgnoreCase);
-    Assert.Contains("HomeAssistantWindowsVolumeSync", expectedFile);
-    Assert.EndsWith("appsettings.json", expectedFile, StringComparison.OrdinalIgnoreCase);
-
-    // Back up any pre-existing real config so this test is hermetic: a developer
-    // running the suite locally won't lose their actual settings.
-    string? originalContent = File.Exists(expectedFile) ? File.ReadAllText(expectedFile) : null;
-
-    try
-    {
-      var manager = new SettingsManager();
-      manager.SaveSettings("https://test.appdata", "test_id", "media_player.test");
-
-      Assert.True(File.Exists(expectedFile));
-      var contents = File.ReadAllText(expectedFile);
-      Assert.Contains("https://test.appdata", contents);
-    }
-    finally
-    {
-      // Restore original content if it existed, otherwise delete the file we created.
-      if (originalContent is not null)
-        File.WriteAllText(expectedFile, originalContent);
-      else if (File.Exists(expectedFile))
-        File.Delete(expectedFile);
-    }
+    Assert.Equal(expectedPath, actualPath);
+    Assert.StartsWith(appDataDir, actualPath, StringComparison.OrdinalIgnoreCase);
+    Assert.Contains("HomeAssistantWindowsVolumeSync", actualPath);
+    Assert.EndsWith("appsettings.json", actualPath, StringComparison.OrdinalIgnoreCase);
   }
 
   private SettingsManager CreateSettingsManager()

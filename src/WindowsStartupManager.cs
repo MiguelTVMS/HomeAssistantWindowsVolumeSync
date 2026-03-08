@@ -44,11 +44,7 @@ public static class WindowsStartupManager
             var exePath = Environment.ProcessPath ?? System.Reflection.Assembly.GetExecutingAssembly().Location;
             key.SetValue(AppName, $"\"{exePath}\"");
         }
-        catch (InvalidOperationException)
-        {
-            throw;
-        }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not InvalidOperationException)
         {
             throw new InvalidOperationException($"Failed to enable startup: {ex.Message}", ex);
         }
@@ -71,11 +67,7 @@ public static class WindowsStartupManager
                 key.DeleteValue(AppName, false);
             }
         }
-        catch (InvalidOperationException)
-        {
-            throw;
-        }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not InvalidOperationException)
         {
             throw new InvalidOperationException($"Failed to disable startup: {ex.Message}", ex);
         }

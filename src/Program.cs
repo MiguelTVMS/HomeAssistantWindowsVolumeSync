@@ -24,13 +24,28 @@ try
 
     var builder = Host.CreateApplicationBuilder(args);
 
-    // Load user config from %APPDATA% — overrides the base appsettings.json shipped
-    // with the application. This allows the app to be installed to a read-only location
-    // (e.g. Program Files) while still persisting user settings correctly.
-    builder.Configuration.AddJsonFile(
-        ConfigurationPaths.GetUserConfigFilePath(),
-        optional: true,
-        reloadOnChange: true);
+    // Insert the user config from %APPDATA% BEFORE environment variables so that the
+    // precedence order is (lowest → highest):
+    //   shipped appsettings.json  <  user config (%APPDATA%)  <  env vars  <  CLI args
+    // This allows the app to work when installed to a read-only location (e.g. Program
+    // Files) while still letting env vars / CLI args override for ops/debug scenarios.
+    var userConfigPath = ConfigurationPaths.GetUserConfigFilePath();
+    var sources = builder.Configuration.Sources;
+
+    // Resolve the JsonConfigurationSource via a temporary builder so its file provider
+    // is properly initialised before we insert it directly into the sources list.
+    var tempBuilder = new ConfigurationBuilder()
+        .AddJsonFile(userConfigPath, optional: true, reloadOnChange: true);
+    var userConfigSource = tempBuilder.Sources.Last();
+
+    // Insert before the first EnvironmentVariables source (after all shipped JSON files).
+    var envVarIndex = sources
+        .Select((s, i) => (s, i))
+        .Where(x => x.s.GetType().Name.StartsWith("EnvironmentVariables", StringComparison.Ordinal))
+        .Select(x => (int?)x.i)
+        .FirstOrDefault() ?? sources.Count;
+
+    sources.Insert(envVarIndex, userConfigSource);
 
     // Configure logging from appsettings.json
     builder.Logging.ClearProviders();
