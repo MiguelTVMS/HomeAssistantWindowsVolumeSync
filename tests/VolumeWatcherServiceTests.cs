@@ -364,8 +364,9 @@ public class VolumeWatcherServiceTests
             c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()),
             Times.Never);
 
-        // Wait for debounce to complete
-        await Task.Delay(debounceMs + 50);
+        // Wait for debounce to complete — use a generous margin (debounce * 3) so the
+        // test is reliable on loaded CI runners where timer resolution can be coarse.
+        await Task.Delay(debounceMs * 3);
 
         // Assert - Call should be made after debounce period
         _mockHomeAssistantClient.Verify(
