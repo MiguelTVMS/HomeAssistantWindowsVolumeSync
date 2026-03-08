@@ -229,6 +229,14 @@ dotnet test HomeAssistantWindowsVolumeSync.sln --verbosity normal
 dotnet publish src -c Release -r win-x64 --self-contained false -o publish
 ```
 
+## Platform Constraints
+
+This project targets `net8.0-windows`. The `Microsoft.WindowsDesktop.App` runtime only exists on Windows, so:
+
+- **`dotnet test` cannot run on macOS or Linux** — the test host will abort with a missing framework error
+- If the current environment is not Windows, skip local test execution and rely on CI (`windows-latest` runner) as the verification gate
+- Always note in the PR that local tests were skipped due to platform constraints
+
 ## MANDATORY: Build and Test After Changes
 
 **CRITICAL**: After ANY code change, you MUST:
