@@ -231,24 +231,39 @@ dotnet publish src -c Release -r win-x64 --self-contained false -o publish
 
 ## Test Playlists
 
-Tests are tagged with `[WindowsFact]` / `[WindowsTheory]` when they require Windows APIs (Registry, WinForms, NAudio). This enables filter-based playlists:
+Tests that require Windows APIs are tagged with `[WindowsFact]` / `[WindowsTheory]` (defined in `tests/WindowsOnlyAttributes.cs`). These attributes:
+
+- Automatically **skip** on macOS / Linux with a clear message
+- Emit **`Category=Windows`** trait for filter-based playlists via xUnit's `ITraitAttribute` / `ITraitDiscoverer`
+
+### When to use
+
+| Attribute | Use instead of | When |
+|-----------|---------------|------|
+| `[WindowsFact]` | `[Fact]` | Test uses Registry, WinForms, NAudio, or any Windows-only API |
+| `[WindowsTheory]` | `[Theory]` | Same, but for data-driven tests |
+
+### Filter commands (playlists)
 
 ```bash
-# All tests (Windows only — net8.0-windows requires Windows runtime)
+# Run all tests (requires Windows runtime)
 dotnet test HomeAssistantWindowsVolumeSync.sln
 
-# Windows-specific tests only
+# Run Windows-specific tests only
 dotnet test HomeAssistantWindowsVolumeSync.sln --filter "Category=Windows"
 
-# Cross-platform tests only (skip Windows-specific)
+# Run cross-platform tests only (skip Windows-specific)
 dotnet test HomeAssistantWindowsVolumeSync.sln --filter "Category!=Windows"
 ```
 
-**Windows-only test files** (tagged with `[WindowsFact]`/`[WindowsTheory]`):
-- `WindowsStartupManagerTests.cs` — Registry
-- `IWindowsStartupManagerTests.cs` — Registry
-- `SystemTrayServiceTests.cs` — WinForms / NotifyIcon
-- `VolumeWatcherServiceTests.cs` — NAudio / Core Audio API
+### Currently tagged Windows-only test files
+
+| File | Reason |
+|------|--------|
+| `WindowsStartupManagerTests.cs` | Uses `Registry.CurrentUser` |
+| `IWindowsStartupManagerTests.cs` | Calls `WindowsStartupManager` (Registry) |
+| `SystemTrayServiceTests.cs` | Requires WinForms / `NotifyIcon` |
+| `VolumeWatcherServiceTests.cs` | Requires NAudio / Core Audio API |
 
 ## Platform Constraints
 

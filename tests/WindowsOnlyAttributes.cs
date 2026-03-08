@@ -1,14 +1,37 @@
+using System.Collections.Generic;
 using Xunit;
+using Xunit.Abstractions;
+using Xunit.Sdk;
 
 namespace HomeAssistantWindowsVolumeSync.Tests;
 
 /// <summary>
-/// Marks a test as Windows-only.
-/// - On Windows: runs normally.
-/// - On macOS / Linux: skipped automatically.
-/// - Tagged with Category=Windows for filter-based playlists.
+/// xUnit v2 trait discoverer that emits Category=Windows for all
+/// WindowsFact / WindowsTheory annotated tests.
+/// Enables filter-based playlists:
+///   dotnet test --filter "Category=Windows"
+///   dotnet test --filter "Category!=Windows"
 /// </summary>
-public sealed class WindowsFactAttribute : FactAttribute
+public class WindowsTraitDiscoverer : ITraitDiscoverer
+{
+    public IEnumerable<KeyValuePair<string, string>> GetTraits(IAttributeInfo traitAttribute)
+    {
+        yield return new KeyValuePair<string, string>("Category", "Windows");
+    }
+}
+
+/// <summary>
+/// Marks a test as Windows-only.
+/// - On Windows  : runs normally, tagged Category=Windows.
+/// - On non-Windows : skipped automatically with a clear message.
+///
+/// Use instead of [Fact] for tests that require Registry, WinForms, or NAudio.
+/// </summary>
+[TraitDiscoverer(
+    "HomeAssistantWindowsVolumeSync.Tests.WindowsTraitDiscoverer",
+    "HomeAssistantWindowsVolumeSync.Tests")]
+[AttributeUsage(AttributeTargets.Method | AttributeTargets.Class, AllowMultiple = false)]
+public sealed class WindowsFactAttribute : FactAttribute, ITraitAttribute
 {
     public WindowsFactAttribute()
     {
@@ -19,11 +42,16 @@ public sealed class WindowsFactAttribute : FactAttribute
 
 /// <summary>
 /// Marks a theory as Windows-only.
-/// - On Windows: runs normally.
-/// - On macOS / Linux: skipped automatically.
-/// - Tagged with Category=Windows for filter-based playlists.
+/// - On Windows  : runs normally, tagged Category=Windows.
+/// - On non-Windows : skipped automatically with a clear message.
+///
+/// Use instead of [Theory] for tests that require Registry, WinForms, or NAudio.
 /// </summary>
-public sealed class WindowsTheoryAttribute : TheoryAttribute
+[TraitDiscoverer(
+    "HomeAssistantWindowsVolumeSync.Tests.WindowsTraitDiscoverer",
+    "HomeAssistantWindowsVolumeSync.Tests")]
+[AttributeUsage(AttributeTargets.Method | AttributeTargets.Class, AllowMultiple = false)]
+public sealed class WindowsTheoryAttribute : TheoryAttribute, ITraitAttribute
 {
     public WindowsTheoryAttribute()
     {
