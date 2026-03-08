@@ -2,15 +2,37 @@ using Xunit;
 
 namespace HomeAssistantWindowsVolumeSync.Tests;
 
-public class ConfigurationPathsTests
+public class ConfigurationPathsTests : IDisposable
 {
+    private readonly string _tempRoot;
+    private readonly string _userConfigDirectory;
+    private readonly string _userConfigFilePath;
+    private readonly string _defaultConfigFilePath;
+
+    public ConfigurationPathsTests()
+    {
+        _tempRoot = Path.Combine(Path.GetTempPath(), $"ConfigPathsTests_{Guid.NewGuid()}");
+        _userConfigDirectory = Path.Combine(_tempRoot, "appdata", "HomeAssistantWindowsVolumeSync");
+        _userConfigFilePath = Path.Combine(_userConfigDirectory, "appsettings.json");
+        _defaultConfigFilePath = Path.Combine(_tempRoot, "installdir", "appsettings.json");
+        Directory.CreateDirectory(Path.Combine(_tempRoot, "installdir"));
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_tempRoot))
+            Directory.Delete(_tempRoot, true);
+    }
+
+    // ---------------------------------------------------------------------------
+    // Path resolution
+    // ---------------------------------------------------------------------------
+
     [Fact]
     public void GetUserConfigDirectory_ReturnsPathUnderAppData()
     {
-        // Act
         var dir = ConfigurationPaths.GetUserConfigDirectory();
 
-        // Assert
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         Assert.StartsWith(appData, dir, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("HomeAssistantWindowsVolumeSync", dir);
@@ -19,10 +41,8 @@ public class ConfigurationPathsTests
     [Fact]
     public void GetUserConfigFilePath_ReturnsAppsettingsJsonUnderUserConfigDirectory()
     {
-        // Act
         var filePath = ConfigurationPaths.GetUserConfigFilePath();
 
-        // Assert
         Assert.Equal(
             Path.Combine(ConfigurationPaths.GetUserConfigDirectory(), "appsettings.json"),
             filePath);
@@ -31,134 +51,82 @@ public class ConfigurationPathsTests
     [Fact]
     public void GetDefaultConfigFilePath_ReturnsPathUnderAppContextBaseDirectory()
     {
-        // Act
         var filePath = ConfigurationPaths.GetDefaultConfigFilePath();
 
-        // Assert
         Assert.Equal(
             Path.Combine(AppContext.BaseDirectory, "appsettings.json"),
             filePath);
     }
 
+    // ---------------------------------------------------------------------------
+    // EnsureUserConfigExists — exercising the real internal overload with temp paths
+    // ---------------------------------------------------------------------------
+
     [Fact]
     public void EnsureUserConfigExists_CreatesDirectory_WhenItDoesNotExist()
     {
-        // Arrange — redirect to a temp location to avoid touching real %APPDATA%
-        using var tempScope = new TempAppDataScope();
+        ConfigurationPaths.EnsureUserConfigExists(_userConfigDirectory, _defaultConfigFilePath);
 
-        // Act
-        tempScope.EnsureUserConfigExists();
-
-        // Assert
-        Assert.True(Directory.Exists(tempScope.UserConfigDirectory));
+        Assert.True(Directory.Exists(_userConfigDirectory));
     }
 
     [Fact]
     public void EnsureUserConfigExists_CreatesConfigFile_WhenNeitherExists()
     {
-        // Arrange
-        using var tempScope = new TempAppDataScope();
+        ConfigurationPaths.EnsureUserConfigExists(_userConfigDirectory, _defaultConfigFilePath);
 
-        // Act
-        tempScope.EnsureUserConfigExists();
-
-        // Assert
-        Assert.True(File.Exists(tempScope.UserConfigFilePath));
+        Assert.True(File.Exists(_userConfigFilePath));
     }
 
     [Fact]
     public void EnsureUserConfigExists_SeedsFromDefault_WhenDefaultExists()
     {
-        // Arrange
-        using var tempScope = new TempAppDataScope();
         var expectedContent = @"{ ""HomeAssistant"": { ""WebhookUrl"": ""https://default.local"" } }";
-        File.WriteAllText(tempScope.DefaultConfigFilePath, expectedContent);
+        File.WriteAllText(_defaultConfigFilePath, expectedContent);
 
-        // Act
-        tempScope.EnsureUserConfigExists();
+        ConfigurationPaths.EnsureUserConfigExists(_userConfigDirectory, _defaultConfigFilePath);
 
-        // Assert
-        var actual = File.ReadAllText(tempScope.UserConfigFilePath);
+        var actual = File.ReadAllText(_userConfigFilePath);
         Assert.Equal(expectedContent, actual);
     }
 
     [Fact]
     public void EnsureUserConfigExists_WritesEmptyJson_WhenNoDefaultExists()
     {
-        // Arrange
-        using var tempScope = new TempAppDataScope(createDefaultConfig: false);
+        // Default config file deliberately not created
 
-        // Act
-        tempScope.EnsureUserConfigExists();
+        ConfigurationPaths.EnsureUserConfigExists(_userConfigDirectory, _defaultConfigFilePath);
 
-        // Assert
-        var content = File.ReadAllText(tempScope.UserConfigFilePath);
+        var content = File.ReadAllText(_userConfigFilePath);
         Assert.Equal("{}", content);
     }
 
     [Fact]
     public void EnsureUserConfigExists_DoesNotOverwriteExistingUserConfig()
     {
-        // Arrange
-        using var tempScope = new TempAppDataScope();
-        Directory.CreateDirectory(tempScope.UserConfigDirectory);
+        Directory.CreateDirectory(_userConfigDirectory);
         var existingContent = @"{ ""HomeAssistant"": { ""WebhookUrl"": ""https://user.local"" } }";
-        File.WriteAllText(tempScope.UserConfigFilePath, existingContent);
+        File.WriteAllText(_userConfigFilePath, existingContent);
 
         var defaultContent = @"{ ""HomeAssistant"": { ""WebhookUrl"": ""https://default.local"" } }";
-        File.WriteAllText(tempScope.DefaultConfigFilePath, defaultContent);
+        File.WriteAllText(_defaultConfigFilePath, defaultContent);
 
-        // Act
-        tempScope.EnsureUserConfigExists();
+        ConfigurationPaths.EnsureUserConfigExists(_userConfigDirectory, _defaultConfigFilePath);
 
-        // Assert — user config must not be overwritten
-        var actual = File.ReadAllText(tempScope.UserConfigFilePath);
+        var actual = File.ReadAllText(_userConfigFilePath);
         Assert.Equal(existingContent, actual);
     }
 
-    /// <summary>
-    /// Redirects ConfigurationPaths to a temp directory for isolated testing
-    /// without touching the real %APPDATA% or AppContext.BaseDirectory.
-    /// </summary>
-    private sealed class TempAppDataScope : IDisposable
+    [Fact]
+    public void EnsureUserConfigExists_IsIdempotent_WhenCalledMultipleTimes()
     {
-        private readonly string _tempRoot;
+        File.WriteAllText(_defaultConfigFilePath, "{}");
 
-        public string UserConfigDirectory { get; }
-        public string UserConfigFilePath { get; }
-        public string DefaultConfigFilePath { get; }
+        ConfigurationPaths.EnsureUserConfigExists(_userConfigDirectory, _defaultConfigFilePath);
+        ConfigurationPaths.EnsureUserConfigExists(_userConfigDirectory, _defaultConfigFilePath);
+        ConfigurationPaths.EnsureUserConfigExists(_userConfigDirectory, _defaultConfigFilePath);
 
-        public TempAppDataScope(bool createDefaultConfig = true)
-        {
-            _tempRoot = Path.Combine(Path.GetTempPath(), $"ConfigPathsTests_{Guid.NewGuid()}");
-            UserConfigDirectory = Path.Combine(_tempRoot, "appdata", "HomeAssistantWindowsVolumeSync");
-            UserConfigFilePath = Path.Combine(UserConfigDirectory, "appsettings.json");
-            DefaultConfigFilePath = Path.Combine(_tempRoot, "installdir", "appsettings.json");
-
-            Directory.CreateDirectory(Path.Combine(_tempRoot, "installdir"));
-
-            if (createDefaultConfig)
-                File.WriteAllText(DefaultConfigFilePath, "{}");
-        }
-
-        /// <summary>Calls the equivalent of ConfigurationPaths.EnsureUserConfigExists() using temp paths.</summary>
-        public void EnsureUserConfigExists()
-        {
-            Directory.CreateDirectory(UserConfigDirectory);
-
-            if (!File.Exists(UserConfigFilePath))
-            {
-                if (File.Exists(DefaultConfigFilePath))
-                    File.Copy(DefaultConfigFilePath, UserConfigFilePath);
-                else
-                    File.WriteAllText(UserConfigFilePath, "{}");
-            }
-        }
-
-        public void Dispose()
-        {
-            if (Directory.Exists(_tempRoot))
-                Directory.Delete(_tempRoot, true);
-        }
+        Assert.True(File.Exists(_userConfigFilePath));
+        Assert.Single(Directory.GetFiles(_userConfigDirectory));
     }
 }

@@ -15,6 +15,9 @@ public class SettingsManager
     public SettingsManager(IAppConfiguration? appConfiguration = null, ILogger<SettingsManager>? logger = null)
         : this(ConfigurationPaths.GetUserConfigFilePath(), appConfiguration, logger)
     {
+        // Ensure the %APPDATA% config directory exists so SaveSettings never throws
+        // DirectoryNotFoundException when using the default (production) path.
+        ConfigurationPaths.EnsureUserConfigExists();
     }
 
     /// <summary>

@@ -2,9 +2,9 @@ namespace HomeAssistantWindowsVolumeSync;
 
 /// <summary>
 /// Resolves canonical paths for application configuration files.
-/// User-editable config is stored in %APPDATA% so the app functions correctly
-/// whether installed to a protected location (Program Files) or a user-writable
-/// location (%LOCALAPPDATA%, dev build folder, etc.).
+/// User-editable config is stored in the roaming application data folder (%APPDATA%)
+/// so the app functions correctly regardless of where it is installed (for example,
+/// in Program Files, a per-user folder under %LOCALAPPDATA%, or a dev build folder).
 /// </summary>
 public static class ConfigurationPaths
 {
@@ -37,26 +37,42 @@ public static class ConfigurationPaths
     /// <summary>
     /// Ensures the user config directory exists and seeds it with the default
     /// appsettings.json if no user config file exists yet (first run).
+    /// Safe to call concurrently — treats "file already exists" as success.
     /// </summary>
-    public static void EnsureUserConfigExists()
+    public static void EnsureUserConfigExists() =>
+        EnsureUserConfigExists(GetUserConfigDirectory(), GetDefaultConfigFilePath());
+
+    /// <summary>
+    /// Testable overload: same logic as <see cref="EnsureUserConfigExists()"/> but
+    /// operates on caller-supplied paths instead of the production %APPDATA% locations.
+    /// </summary>
+    internal static void EnsureUserConfigExists(string userConfigDirectory, string defaultConfigFilePath)
     {
-        var userConfigDir = GetUserConfigDirectory();
-        var userConfigFile = GetUserConfigFilePath();
+        Directory.CreateDirectory(userConfigDirectory);
 
-        Directory.CreateDirectory(userConfigDir);
+        var userConfigFile = Path.Combine(userConfigDirectory, SettingsFileName);
 
-        if (!File.Exists(userConfigFile))
+        if (File.Exists(userConfigFile))
+            return;
+
+        try
         {
-            var defaultConfigFile = GetDefaultConfigFilePath();
-            if (File.Exists(defaultConfigFile))
+            if (File.Exists(defaultConfigFilePath))
             {
-                File.Copy(defaultConfigFile, userConfigFile);
+                File.Copy(defaultConfigFilePath, userConfigFile);
             }
             else
             {
                 // No default to seed from — write a minimal valid config
                 File.WriteAllText(userConfigFile, "{}");
             }
+        }
+        catch (IOException)
+        {
+            // Another process created the file between our File.Exists check and the
+            // copy/write — treat this as success (idempotent startup).
+            if (!File.Exists(userConfigFile))
+                throw;
         }
     }
 }

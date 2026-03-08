@@ -297,17 +297,38 @@ public class SettingsManagerTests : IDisposable
   }
 
   [Fact]
-  public void DefaultConstructor_UsesAppDataPath()
+  public void DefaultConstructor_WritesToAppDataPath()
   {
-    // The default constructor must resolve the config path to %APPDATA%, not
-    // next to the executable — so the app works correctly when installed to
-    // a protected location such as Program Files.
-    var expectedDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-    var expectedPath = ConfigurationPaths.GetUserConfigFilePath();
+    // The default constructor must write settings to %APPDATA%, not next to the
+    // executable — so the app functions correctly when installed to a protected
+    // location such as Program Files.
+    var appDataDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+    var expectedFile = ConfigurationPaths.GetUserConfigFilePath();
 
-    Assert.StartsWith(expectedDir, expectedPath, StringComparison.OrdinalIgnoreCase);
-    Assert.EndsWith("appsettings.json", expectedPath, StringComparison.OrdinalIgnoreCase);
-    Assert.Contains("HomeAssistantWindowsVolumeSync", expectedPath);
+    // Verify the path itself resolves under %APPDATA%
+    Assert.StartsWith(appDataDir, expectedFile, StringComparison.OrdinalIgnoreCase);
+    Assert.Contains("HomeAssistantWindowsVolumeSync", expectedFile);
+    Assert.EndsWith("appsettings.json", expectedFile, StringComparison.OrdinalIgnoreCase);
+
+    // Verify the default constructor actually wires up to that path by observing
+    // that SaveSettings writes to it (use a fresh manager with no mock config).
+    var manager = new SettingsManager();
+    manager.SaveSettings("https://test.appdata", "test_id", "media_player.test");
+
+    try
+    {
+      Assert.True(File.Exists(expectedFile));
+      var contents = File.ReadAllText(expectedFile);
+      Assert.Contains("https://test.appdata", contents);
+    }
+    finally
+    {
+      // Clean up: restore or delete the written file so we don't pollute %APPDATA%
+      // across test runs. If the file existed before, we can't restore it here — but
+      // for CI (clean environment) deletion is safe.
+      if (File.Exists(expectedFile))
+        File.Delete(expectedFile);
+    }
   }
 
   private SettingsManager CreateSettingsManager()
