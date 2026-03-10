@@ -13,7 +13,7 @@ public class SettingsManager
     private readonly ILogger<SettingsManager>? _logger;
 
     public SettingsManager(IAppConfiguration? appConfiguration = null, ILogger<SettingsManager>? logger = null)
-        : this(Path.Combine(AppContext.BaseDirectory, "appsettings.json"), appConfiguration, logger)
+        : this(ConfigurationPaths.GetUserConfigFilePath(), appConfiguration, logger)
     {
     }
 
@@ -35,6 +35,12 @@ public class SettingsManager
         _logger?.LogInformation("Saving settings to {FilePath}", _settingsFilePath);
         _logger?.LogDebug("New settings - WebhookUrl: {Url}, WebhookId: {Id}, TargetMediaPlayer: {Player}",
             webhookUrl, webhookId, targetMediaPlayer);
+
+        // Ensure the parent directory exists (e.g. %APPDATA%\HomeAssistantWindowsVolumeSync\)
+        // before writing. Doing this at write-time keeps the constructor side-effect free.
+        var directory = Path.GetDirectoryName(_settingsFilePath);
+        if (!string.IsNullOrEmpty(directory))
+            Directory.CreateDirectory(directory);
 
         // Read the current settings file or create empty object if doesn't exist
         var json = File.Exists(_settingsFilePath) ? File.ReadAllText(_settingsFilePath) : "{}";

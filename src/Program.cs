@@ -18,7 +18,35 @@ if (Environment.UserInteractive)
 
 try
 {
+    // Ensure %APPDATA%\HomeAssistantWindowsVolumeSync\appsettings.json exists.
+    // Seeds it from the default shipped config on first run.
+    ConfigurationPaths.EnsureUserConfigExists();
+
     var builder = Host.CreateApplicationBuilder(args);
+
+    // Insert the user config from %APPDATA% BEFORE environment variables so that the
+    // precedence order is (lowest → highest):
+    //   shipped appsettings.json  <  user config (%APPDATA%)  <  env vars  <  CLI args
+    // This allows the app to work when installed to a read-only location (e.g. Program
+    // Files) while still letting env vars / CLI args override for ops/debug scenarios.
+    var userConfigPath = ConfigurationPaths.GetUserConfigFilePath();
+    var sources = builder.Configuration.Sources;
+
+    // Resolve the JsonConfigurationSource via a temporary builder so its file provider
+    // is properly initialised before we insert it directly into the sources list.
+    var tempBuilder = new ConfigurationBuilder()
+        .AddJsonFile(userConfigPath, optional: true, reloadOnChange: true);
+    tempBuilder.Build(); // triggers FileProvider initialisation on the source
+    var userConfigSource = tempBuilder.Sources.Last();
+
+    // Insert before the first EnvironmentVariables source (after all shipped JSON files).
+    var envVarIndex = sources
+        .Select((s, i) => (s, i))
+        .Where(x => x.s is Microsoft.Extensions.Configuration.EnvironmentVariables.EnvironmentVariablesConfigurationSource)
+        .Select(x => (int?)x.i)
+        .FirstOrDefault() ?? sources.Count;
+
+    sources.Insert(envVarIndex, userConfigSource);
 
     // Configure logging from appsettings.json
     builder.Logging.ClearProviders();
@@ -28,13 +56,6 @@ try
 
     // Add debug logging (outputs to debugger window)
     builder.Logging.AddDebug();
-
-    // Add file logging for persistent logs
-    var logPath = Path.Combine(AppContext.BaseDirectory, "logs");
-    if (!Directory.Exists(logPath))
-    {
-        Directory.CreateDirectory(logPath);
-    }
 
     // Register the centralized application configuration
     builder.Services.AddSingleton<IAppConfiguration>(provider =>

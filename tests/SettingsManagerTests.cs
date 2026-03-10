@@ -296,6 +296,32 @@ public class SettingsManagerTests : IDisposable
     Assert.Contains("true", json.ToLower());
   }
 
+  [Fact]
+  public void DefaultConstructor_UsesAppDataPath()
+  {
+    // The default constructor must resolve the config path to %APPDATA%, not next
+    // to the executable, so the app works correctly when installed to a protected
+    // location such as Program Files.
+    //
+    // We assert via reflection on the private _settingsFilePath field.
+    // The default constructor is side-effect free (no filesystem writes), so this
+    // test is fully hermetic and does not alter the real user config on disk.
+    var manager = new SettingsManager();
+
+    var field = typeof(SettingsManager)
+      .GetField("_settingsFilePath", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+    Assert.NotNull(field);
+
+    var actualPath = field!.GetValue(manager) as string;
+    var appDataDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+    var expectedPath = ConfigurationPaths.GetUserConfigFilePath();
+
+    Assert.Equal(expectedPath, actualPath);
+    Assert.StartsWith(appDataDir, actualPath, StringComparison.OrdinalIgnoreCase);
+    Assert.Contains("HomeAssistantWindowsVolumeSync", actualPath);
+    Assert.EndsWith("appsettings.json", actualPath, StringComparison.OrdinalIgnoreCase);
+  }
+
   private SettingsManager CreateSettingsManager()
   {
     return new SettingsManager(_testSettingsFile, _mockConfiguration.Object, null);

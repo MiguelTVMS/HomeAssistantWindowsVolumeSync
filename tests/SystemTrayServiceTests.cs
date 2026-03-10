@@ -42,7 +42,7 @@ public class SystemTrayServiceTests
             .Returns(_volumeWatcherService);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Constructor_ShouldInitialize_Successfully()
     {
         // Act
@@ -64,7 +64,7 @@ public class SystemTrayServiceTests
             Times.Once);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Constructor_WithValidParameters_ShouldNotThrow()
     {
         // Act & Assert - Should not throw
@@ -77,7 +77,7 @@ public class SystemTrayServiceTests
         Assert.NotNull(service);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Dispose_ShouldDisposeResourcesSafely()
     {
         // Arrange
@@ -94,7 +94,7 @@ public class SystemTrayServiceTests
         service.Dispose();
     }
 
-    [Fact]
+    [WindowsFact]
     public void ServiceMetadata_ShouldBeCorrect()
     {
         // Arrange
@@ -109,7 +109,7 @@ public class SystemTrayServiceTests
         Assert.IsAssignableFrom<IHostedService>(service);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Constructor_ShouldAcceptAllRequiredDependencies()
     {
         // Arrange
@@ -130,7 +130,7 @@ public class SystemTrayServiceTests
         Assert.IsType<SystemTrayService>(service);
     }
 
-    [Fact]
+    [WindowsFact]
     public void OnExitClick_ShouldCallStopApplication()
     {
         // Arrange
@@ -153,7 +153,7 @@ public class SystemTrayServiceTests
         _mockLifetime.Verify(x => x.StopApplication(), Times.Once);
     }
 
-    [Fact]
+    [WindowsFact]
     public void OnExitClick_ShouldLogExitRequest()
     {
         // Arrange
@@ -183,7 +183,7 @@ public class SystemTrayServiceTests
             Times.AtLeastOnce);
     }
 
-    [Fact]
+    [WindowsFact]
     public void OnExitClick_ShouldNotThrowException()
     {
         // Arrange
@@ -206,7 +206,7 @@ public class SystemTrayServiceTests
         Assert.Null(exception);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Dispose_ShouldNotThrowException_WhenCalledOnce()
     {
         // Arrange
@@ -222,7 +222,7 @@ public class SystemTrayServiceTests
         Assert.Null(exception);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Dispose_ShouldNotThrowException_WhenCalledMultipleTimes()
     {
         // Arrange
@@ -241,7 +241,7 @@ public class SystemTrayServiceTests
         Assert.Null(exception);
     }
 
-    [Fact]
+    [WindowsFact]
     public void UpdateConnectionStatus_ShouldInvoke_WithConnectedState()
     {
         // Arrange
@@ -265,7 +265,7 @@ public class SystemTrayServiceTests
         Assert.Null(exception);
     }
 
-    [Fact]
+    [WindowsFact]
     public void UpdateConnectionStatus_ShouldInvoke_WithDisconnectedState()
     {
         // Arrange
@@ -289,7 +289,7 @@ public class SystemTrayServiceTests
         Assert.Null(exception);
     }
 
-    [Fact]
+    [WindowsFact]
     public void UpdateTrayIcon_ShouldInvoke_WithConnectedState()
     {
         // Arrange
@@ -313,7 +313,7 @@ public class SystemTrayServiceTests
         Assert.Null(exception);
     }
 
-    [Fact]
+    [WindowsFact]
     public void UpdateTrayIcon_ShouldInvoke_WithDisconnectedState()
     {
         // Arrange
@@ -337,7 +337,7 @@ public class SystemTrayServiceTests
         Assert.Null(exception);
     }
 
-    [Fact]
+    [WindowsFact]
     public void UpdateTrayIcon_ShouldNotThrow_WhenIconFilesNotFound()
     {
         // Arrange

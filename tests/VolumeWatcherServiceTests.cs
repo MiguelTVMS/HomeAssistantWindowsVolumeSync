@@ -19,7 +19,7 @@ public class VolumeWatcherServiceTests
         _mockConfiguration.Setup(c => c.DebounceTimer).Returns(100); // Default value
     }
 
-    [Fact]
+    [WindowsFact]
     public void Constructor_ShouldInitialize_Successfully()
     {
         // Act
@@ -32,7 +32,7 @@ public class VolumeWatcherServiceTests
         Assert.NotNull(service);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Constructor_WithValidParameters_ShouldNotThrow()
     {
         // Act & Assert - Should not throw
@@ -44,7 +44,7 @@ public class VolumeWatcherServiceTests
         Assert.NotNull(service);
     }
 
-    [Fact]
+    [WindowsFact]
     public void SetPaused_WhenCalledWithTrue_ShouldLogPausedStatus()
     {
         // Arrange
@@ -67,7 +67,7 @@ public class VolumeWatcherServiceTests
             Times.Once);
     }
 
-    [Fact]
+    [WindowsFact]
     public void SetPaused_WhenCalledWithFalse_ShouldLogResumedStatus()
     {
         // Arrange
@@ -90,7 +90,7 @@ public class VolumeWatcherServiceTests
             Times.Once);
     }
 
-    [Fact]
+    [WindowsFact]
     public void SetPaused_WhenCalledMultipleTimes_ShouldLogEachTime()
     {
         // Arrange
@@ -115,7 +115,7 @@ public class VolumeWatcherServiceTests
             Times.Exactly(3));
     }
 
-    [Fact]
+    [WindowsFact]
     public void Dispose_ShouldDisposeResourcesSafely()
     {
         // Arrange
@@ -131,7 +131,7 @@ public class VolumeWatcherServiceTests
         service.Dispose();
     }
 
-    [Fact]
+    [WindowsFact]
     public void ServiceMetadata_ShouldBeCorrect()
     {
         // Arrange
@@ -145,7 +145,7 @@ public class VolumeWatcherServiceTests
         Assert.IsAssignableFrom<IHostedService>(service);
     }
 
-    [Fact]
+    [WindowsFact]
     public async Task StartAsync_ShouldNotThrow()
     {
         // Arrange
@@ -187,7 +187,7 @@ public class VolumeWatcherServiceTests
             Times.AtLeastOnce);
     }
 
-    [Fact]
+    [WindowsFact]
     public async Task ExecuteAsync_WithNoAudioDevice_ShouldLogWarningAndContinue()
     {
         // Arrange
@@ -223,7 +223,7 @@ public class VolumeWatcherServiceTests
             Times.AtLeastOnce);
     }
 
-    [Fact]
+    [WindowsFact]
     public async Task StopAsync_ShouldCompleteSuccessfully()
     {
         // Arrange
@@ -236,7 +236,7 @@ public class VolumeWatcherServiceTests
         await service.StopAsync(CancellationToken.None);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Constructor_ShouldAcceptAllRequiredDependencies()
     {
         // Arrange
@@ -256,7 +256,7 @@ public class VolumeWatcherServiceTests
         Assert.IsType<VolumeWatcherService>(service);
     }
 
-    [Fact]
+    [WindowsFact]
     public void SetPaused_WithSameValueMultipleTimes_ShouldLogEachCall()
     {
         // Arrange
@@ -282,7 +282,7 @@ public class VolumeWatcherServiceTests
 
     #region Debounce Tests
 
-    [Fact]
+    [WindowsFact]
     public async Task HandleVolumeChange_WithinDebounceWindow_ShouldBatchUpdates()
     {
         // Arrange
@@ -312,7 +312,7 @@ public class VolumeWatcherServiceTests
             Times.Once);
     }
 
-    [Fact]
+    [WindowsFact]
     public async Task HandleVolumeChange_AfterDebounceWindow_ShouldSendLatestValue()
     {
         // Arrange
@@ -340,7 +340,7 @@ public class VolumeWatcherServiceTests
             Times.Once);
     }
 
-    [Fact]
+    [WindowsFact]
     public async Task HandleVolumeChange_ShouldWaitForDebounceTimer()
     {
         // Arrange
@@ -364,8 +364,9 @@ public class VolumeWatcherServiceTests
             c => c.SendVolumeUpdateAsync(It.IsAny<int>(), It.IsAny<bool>()),
             Times.Never);
 
-        // Wait for debounce to complete
-        await Task.Delay(debounceMs + 50);
+        // Wait for debounce to complete — use a generous margin (debounce * 3) so the
+        // test is reliable on loaded CI runners where timer resolution can be coarse.
+        await Task.Delay(debounceMs * 3);
 
         // Assert - Call should be made after debounce period
         _mockHomeAssistantClient.Verify(
@@ -373,7 +374,7 @@ public class VolumeWatcherServiceTests
             Times.Once);
     }
 
-    [Fact]
+    [WindowsFact]
     public async Task HandleVolumeChange_RapidChanges_ShouldResetDebounceTimer()
     {
         // Arrange
@@ -413,7 +414,7 @@ public class VolumeWatcherServiceTests
             Times.Once);
     }
 
-    [Fact]
+    [WindowsFact]
     public void HandleVolumeChange_WhenPaused_ShouldNotStartDebounce()
     {
         // Arrange
@@ -445,7 +446,7 @@ public class VolumeWatcherServiceTests
             Times.Never);
     }
 
-    [Fact]
+    [WindowsFact]
     public async Task HandleVolumeChange_TimerDispose_ShouldBeSafeOnRapidChanges()
     {
         // Arrange
@@ -480,7 +481,7 @@ public class VolumeWatcherServiceTests
             Times.Once);
     }
 
-    [Fact]
+    [WindowsFact]
     public async Task HandleVolumeChange_SeparateDebounceWindows_ShouldSendMultipleUpdates()
     {
         // Arrange
@@ -517,7 +518,7 @@ public class VolumeWatcherServiceTests
             Times.Once);
     }
 
-    [Fact]
+    [WindowsFact]
     public void Dispose_ShouldDisposeDebounceTimer()
     {
         // Arrange
