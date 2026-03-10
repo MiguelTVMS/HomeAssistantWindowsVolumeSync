@@ -36,6 +36,7 @@ try
     // is properly initialised before we insert it directly into the sources list.
     var tempBuilder = new ConfigurationBuilder()
         .AddJsonFile(userConfigPath, optional: true, reloadOnChange: true);
+    tempBuilder.Build(); // triggers FileProvider initialisation on the source
     var userConfigSource = tempBuilder.Sources.Last();
 
     // Insert before the first EnvironmentVariables source (after all shipped JSON files).
