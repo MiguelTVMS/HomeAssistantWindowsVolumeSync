@@ -8,13 +8,14 @@ on:
       - "src/**"
       - "tests/**"
       - "*.sln"
+      - "installer/**"
+      - ".github/workflows/**"
       - "CLAUDE.md"
       - "AGENTS.md"
       - "CODEX.md"
       - ".github/copilot-instructions.md"
       - ".github/AGENTS.md"
       - "scripts/validate-symlinks.sh"
-      - ".github/workflows/pull-request.yml"
   workflow_dispatch:
 
 concurrency:
