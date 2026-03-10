@@ -19,6 +19,7 @@ cd "$REPO_ROOT"
 # Format: "link:expected_target"
 LINKS=(
   "AGENTS.md:CLAUDE.md"
+  "CODEX.md:CLAUDE.md"
   ".github/copilot-instructions.md:../CLAUDE.md"
   ".github/AGENTS.md:../CLAUDE.md"
 )
@@ -84,6 +85,7 @@ if [ "$FAILED" -eq 1 ]; then
   echo "One or more symlinks are broken. Recreate with:"
   echo ""
   echo "  ln -sf CLAUDE.md AGENTS.md"
+  echo "  ln -sf CLAUDE.md CODEX.md"
   echo "  ln -sf ../CLAUDE.md .github/copilot-instructions.md"
   echo "  ln -sf ../CLAUDE.md .github/AGENTS.md"
   exit 1

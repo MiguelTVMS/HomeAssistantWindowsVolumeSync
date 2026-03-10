@@ -10,6 +10,7 @@ on:
       - "*.sln"
       - "CLAUDE.md"
       - "AGENTS.md"
+      - "CODEX.md"
       - ".github/copilot-instructions.md"
       - ".github/AGENTS.md"
       - "scripts/validate-symlinks.sh"
