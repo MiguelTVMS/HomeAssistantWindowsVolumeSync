@@ -79,7 +79,7 @@ jobs:
           Compress-Archive -Path publish/framework-dependent/* -DestinationPath HomeAssistantWindowsVolumeSync-${{ steps.get_version.outputs.VERSION }}-win-x64.zip
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           draft: false
           prerelease: false
