@@ -12,6 +12,70 @@ HomeAssistantWindowsVolumeSync is a Windows system tray application that synchro
 - **HTTP Client**: `System.Net.Http` with `IHttpClientFactory`
 - **Testing**: xUnit with Moq for mocking
 
+## First-Time Setup (per clone)
+
+After cloning, activate the pre-commit hook that validates AI instruction symlinks:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+This prevents accidental commits that break `AGENTS.md`, `.github/copilot-instructions.md`, or `.github/AGENTS.md` — all of which must remain symlinks pointing to `CLAUDE.md`.
+
+To run the validation manually at any time:
+
+```bash
+bash scripts/validate-symlinks.sh
+```
+
+## Branching Strategy (GitFlow)
+
+This repository follows **GitFlow**. All branches must be created accordingly — no exceptions.
+
+### Permanent branches
+
+| Branch | Purpose |
+|--------|---------|
+| `main` | Production-ready releases only. Never commit directly. |
+| `develop` | Integration branch. All feature/fix work merges here first. |
+
+### Working branches
+
+| Type | Pattern | Branch from | Merges into |
+|------|---------|-------------|-------------|
+| Feature | `feature/<short-description>` | `develop` | `develop` |
+| Bug fix | `fix/<short-description>` | `develop` | `develop` |
+| Release | `release/<version>` | `develop` | `main` + `develop` |
+| Hotfix | `hotfix/<short-description>` | `main` | `main` + `develop` |
+
+### Rules
+
+- **Never commit directly to `main` or `develop`** — always work on a branch and open a PR
+- Feature branches off `develop`, not `main`
+- Hotfixes are the only branches allowed to branch off `main` (production emergencies only)
+- Release branches are used to prepare a version — bump version, update changelog, final QA — then merge to both `main` and `develop`
+- Delete branches after merging
+
+### Examples
+
+```bash
+# New feature
+git checkout develop
+git checkout -b feature/add-wix-installer
+
+# Bug fix
+git checkout develop
+git checkout -b fix/tray-icon-leak-on-disconnect
+
+# Hotfix on production
+git checkout main
+git checkout -b hotfix/crash-on-missing-appsettings
+
+# Release prep
+git checkout develop
+git checkout -b release/1.2.0
+```
+
 ## Coding Conventions
 
 ### General Guidelines
@@ -180,6 +244,50 @@ dotnet test HomeAssistantWindowsVolumeSync.sln --verbosity normal
 # Publish for production
 dotnet publish src -c Release -r win-x64 --self-contained false -o publish
 ```
+
+## Test Playlists
+
+Tests that require Windows APIs are tagged with `[WindowsFact]` / `[WindowsTheory]` (defined in `tests/WindowsOnlyAttributes.cs`). These attributes:
+
+- Automatically **skip** on macOS / Linux with a clear message
+- Emit **`Category=Windows`** trait for filter-based playlists via xUnit's `ITraitAttribute` / `ITraitDiscoverer`
+
+### When to use
+
+| Attribute | Use instead of | When |
+|-----------|---------------|------|
+| `[WindowsFact]` | `[Fact]` | Test uses Registry, WinForms, NAudio, or any Windows-only API |
+| `[WindowsTheory]` | `[Theory]` | Same, but for data-driven tests |
+
+### Filter commands (playlists)
+
+```bash
+# Run all tests (requires Windows runtime)
+dotnet test HomeAssistantWindowsVolumeSync.sln
+
+# Run Windows-specific tests only
+dotnet test HomeAssistantWindowsVolumeSync.sln --filter "Category=Windows"
+
+# Run cross-platform tests only (skip Windows-specific)
+dotnet test HomeAssistantWindowsVolumeSync.sln --filter "Category!=Windows"
+```
+
+### Currently tagged Windows-only test files
+
+| File | Reason |
+|------|--------|
+| `WindowsStartupManagerTests.cs` | Uses `Registry.CurrentUser` |
+| `IWindowsStartupManagerTests.cs` | Calls `WindowsStartupManager` (Registry) |
+| `SystemTrayServiceTests.cs` | Requires WinForms / `NotifyIcon` |
+| `VolumeWatcherServiceTests.cs` | Requires NAudio / Core Audio API |
+
+## Platform Constraints
+
+This project targets `net8.0-windows`. The `Microsoft.WindowsDesktop.App` runtime only exists on Windows, so:
+
+- **`dotnet test` cannot run on macOS or Linux** — the test host will abort with a missing framework error
+- If the current environment is not Windows, skip local test execution and rely on CI (`windows-latest` runner) as the verification gate
+- Always note in the PR that local tests were skipped due to platform constraints
 
 ## MANDATORY: Build and Test After Changes
 

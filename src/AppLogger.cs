@@ -9,10 +9,20 @@ namespace HomeAssistantWindowsVolumeSync;
 public class AppLogger : IAppLogger
 {
     private readonly ILogger _logger;
+    private readonly string _startupErrorLogPath;
 
     public AppLogger(ILogger logger)
+        : this(logger, Path.Combine(AppContext.BaseDirectory, "startup-error.log"))
+    {
+    }
+
+    /// <summary>
+    /// Internal constructor for testing — allows overriding the startup error log path.
+    /// </summary>
+    internal AppLogger(ILogger logger, string startupErrorLogPath)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _startupErrorLogPath = startupErrorLogPath ?? throw new ArgumentNullException(nameof(startupErrorLogPath));
     }
 
     /// <inheritdoc/>
@@ -54,7 +64,7 @@ public class AppLogger : IAppLogger
     /// <inheritdoc/>
     public void LogStartupError(Exception exception)
     {
-        var logPath = Path.Combine(AppContext.BaseDirectory, "startup-error.log");
+        var logPath = _startupErrorLogPath;
         var errorMessage = $"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC - FATAL ERROR during startup:{Environment.NewLine}{exception}{Environment.NewLine}";
 
         try
