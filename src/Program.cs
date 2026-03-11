@@ -1,6 +1,8 @@
 using HomeAssistantWindowsVolumeSync;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Runtime.InteropServices;
@@ -29,15 +31,21 @@ try
     //   shipped appsettings.json  <  user config (%APPDATA%)  <  env vars  <  CLI args
     // This allows the app to work when installed to a read-only location (e.g. Program
     // Files) while still letting env vars / CLI args override for ops/debug scenarios.
-    var userConfigPath = ConfigurationPaths.GetUserConfigFilePath();
     var sources = builder.Configuration.Sources;
 
-    // Resolve the JsonConfigurationSource via a temporary builder so its file provider
-    // is properly initialised before we insert it directly into the sources list.
-    var tempBuilder = new ConfigurationBuilder()
-        .AddJsonFile(userConfigPath, optional: true, reloadOnChange: true);
-    tempBuilder.Build(); // triggers FileProvider initialisation on the source
-    var userConfigSource = tempBuilder.Sources.Last();
+    // Build the user config source with an explicit PhysicalFileProvider so it resolves
+    // against %APPDATA%, not AppContext.BaseDirectory (which is the install directory).
+    // Without this, JsonConfigurationSource.FileProvider defaults to null and the main
+    // builder resolves it using its own base path (the install dir), causing the user
+    // config to be silently ignored.
+    var userConfigDirectory = Path.GetDirectoryName(ConfigurationPaths.GetUserConfigFilePath())!;
+    var userConfigSource = new JsonConfigurationSource
+    {
+        Path = Path.GetFileName(ConfigurationPaths.GetUserConfigFilePath()),
+        Optional = true,
+        ReloadOnChange = true,
+        FileProvider = new PhysicalFileProvider(userConfigDirectory)
+    };
 
     // Insert before the first EnvironmentVariables source (after all shipped JSON files).
     var envVarIndex = sources
