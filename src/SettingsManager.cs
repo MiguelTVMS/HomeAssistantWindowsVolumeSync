@@ -69,7 +69,12 @@ public class SettingsManager
                 homeAssistantSettings["WebhookUrl"] = webhookUrl;
                 homeAssistantSettings["WebhookId"] = webhookId;
                 homeAssistantSettings["TargetMediaPlayer"] = targetMediaPlayer;
-                homeAssistantSettings["AudioDeviceId"] = audioDeviceId;
+                // Persist AudioDeviceId only when a specific device is selected.
+                // Omit (or remove) the key when empty so null and "" both mean "use Windows default".
+                if (string.IsNullOrEmpty(audioDeviceId))
+                    homeAssistantSettings.Remove("AudioDeviceId");
+                else
+                    homeAssistantSettings["AudioDeviceId"] = audioDeviceId;
 
                 settings[property.Name] = homeAssistantSettings;
             }
@@ -83,15 +88,18 @@ public class SettingsManager
         // If HomeAssistant section doesn't exist, create it
         if (!settings.ContainsKey("HomeAssistant"))
         {
-            settings["HomeAssistant"] = new Dictionary<string, object?>
+            var newSection = new Dictionary<string, object?>
             {
                 ["WebhookUrl"] = webhookUrl,
                 ["WebhookPath"] = "/api/webhook/",
                 ["WebhookId"] = webhookId,
                 ["TargetMediaPlayer"] = targetMediaPlayer,
-                ["AudioDeviceId"] = audioDeviceId,
                 ["StrictTLS"] = true  // Default to secure
             };
+            // Only persist AudioDeviceId when a specific device is selected
+            if (!string.IsNullOrEmpty(audioDeviceId))
+                newSection["AudioDeviceId"] = audioDeviceId;
+            settings["HomeAssistant"] = newSection;
         }
 
         // Write the updated settings back to the file

@@ -42,7 +42,9 @@ public interface IAppConfiguration
     /// <summary>
     /// Gets the Windows audio device ID to monitor.
     /// Empty string or null means use the Windows default output device.
-    /// The value is the MMDevice.ID GUID string from the Core Audio API.
+    /// The value is the NAudio <c>MMDevice.ID</c> Core Audio endpoint ID string
+    /// (for example <c>"{0.0.0.00000000}.{&lt;guid&gt;}"</c>) and should be treated
+    /// as an opaque identifier, not a plain GUID.
     /// </summary>
     string? AudioDeviceId { get; }
 

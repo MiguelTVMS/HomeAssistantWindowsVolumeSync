@@ -544,5 +544,173 @@ public class VolumeWatcherServiceTests
     }
 
     #endregion
+
+    #region ResolveMonitoredDevice tests — string stub, no COM/NAudio references
+
+    // ResolveMonitoredDevice<TDevice> is generic; we use string as the stub device type
+    // so these tests exercise pure logic only and introduce no additional Windows/COM/NAudio
+    // dependencies beyond the test project's net8.0-windows target.
+    // [WindowsFact] is NOT used here intentionally because no NAudio or COM types are referenced.
+
+    private static string? StubResolveDevice(
+        string? configuredDeviceId,
+        Func<string, string?> getDevice,
+        Func<string?> getDefaultDevice,
+        Action<System.Runtime.InteropServices.COMException, string> logWarning,
+        Action<string, string?> logInfo)
+        => VolumeWatcherService.ResolveMonitoredDevice(
+            configuredDeviceId,
+            getDevice,
+            getDefaultDevice,
+            d => d,   // name == the device string itself
+            logWarning,
+            logInfo);
+
+    [Fact]
+    public void ResolveMonitoredDevice_UsesGetDevice_WhenAudioDeviceIdIsConfigured()
+    {
+        var configuredId = "{0.0.0.00000000}.{test-device-id}";
+        var getDeviceCalled = false;
+        var getDefaultCalled = false;
+
+        StubResolveDevice(
+            configuredId,
+            id => { getDeviceCalled = true; return "speakers"; },
+            () => { getDefaultCalled = true; return "default-device"; },
+            (ex, id) => { },
+            (kind, name) => { });
+
+        Assert.True(getDeviceCalled, "GetDevice should be called when AudioDeviceId is configured");
+        Assert.False(getDefaultCalled, "GetDefaultAudioEndpoint should NOT be called when getDevice succeeds");
+    }
+
+    [Fact]
+    public void ResolveMonitoredDevice_UsesGetDefaultDevice_WhenAudioDeviceIdIsEmpty()
+    {
+        var getDeviceCalled = false;
+        var getDefaultCalled = false;
+
+        StubResolveDevice(
+            "",
+            id => { getDeviceCalled = true; return "speakers"; },
+            () => { getDefaultCalled = true; return "default-device"; },
+            (ex, id) => { },
+            (kind, name) => { });
+
+        Assert.False(getDeviceCalled, "GetDevice should NOT be called when AudioDeviceId is empty");
+        Assert.True(getDefaultCalled, "GetDefaultAudioEndpoint should be called when AudioDeviceId is empty");
+    }
+
+    [Fact]
+    public void ResolveMonitoredDevice_UsesGetDefaultDevice_WhenAudioDeviceIdIsNull()
+    {
+        var getDeviceCalled = false;
+        var getDefaultCalled = false;
+
+        StubResolveDevice(
+            null,
+            id => { getDeviceCalled = true; return "speakers"; },
+            () => { getDefaultCalled = true; return "default-device"; },
+            (ex, id) => { },
+            (kind, name) => { });
+
+        Assert.False(getDeviceCalled, "GetDevice should NOT be called when AudioDeviceId is null");
+        Assert.True(getDefaultCalled, "GetDefaultAudioEndpoint should be called when AudioDeviceId is null");
+    }
+
+    [Fact]
+    public void ResolveMonitoredDevice_FallsBackToDefault_WhenConfiguredDeviceNotFound()
+    {
+        var configuredId = "{0.0.0.00000000}.{missing-device-id}";
+        var comException = new System.Runtime.InteropServices.COMException("device not found", unchecked((int)0x80070490));
+        var warningLogged = false;
+        var getDefaultCalled = false;
+
+        StubResolveDevice(
+            configuredId,
+            id => throw comException,
+            () => { getDefaultCalled = true; return "default-device"; },
+            (ex, id) => { warningLogged = true; },
+            (kind, name) => { });
+
+        Assert.True(warningLogged, "A warning should be logged when the configured device is not found");
+        Assert.True(getDefaultCalled, "GetDefaultAudioEndpoint should be called as fallback");
+    }
+
+    [Fact]
+    public void ResolveMonitoredDevice_LogsConfiguredKind_WhenSpecificDeviceSelected()
+    {
+        var configuredId = "{0.0.0.00000000}.{test-device-id}";
+        var loggedKind = "";
+
+        StubResolveDevice(
+            configuredId,
+            id => "Headphones (USB Audio)",
+            () => "Speakers (Realtek)",
+            (ex, id) => { },
+            (kind, name) => { loggedKind = kind; });
+
+        Assert.Equal("configured", loggedKind);
+    }
+
+    [Fact]
+    public void ResolveMonitoredDevice_LogsDefaultKind_WhenNoDeviceConfigured()
+    {
+        var loggedKind = "";
+
+        StubResolveDevice(
+            "",
+            id => "Headphones (USB Audio)",
+            () => "Speakers (Realtek)",
+            (ex, id) => { },
+            (kind, name) => { loggedKind = kind; });
+
+        Assert.Equal("default", loggedKind);
+    }
+
+    [Fact]
+    public void ResolveMonitoredDevice_ReturnsConfiguredDevice_WhenFound()
+    {
+        var configuredId = "{0.0.0.00000000}.{test-device-id}";
+
+        var result = StubResolveDevice(
+            configuredId,
+            id => "Headphones (USB Audio)",
+            () => "Speakers (Realtek)",
+            (ex, id) => { },
+            (kind, name) => { });
+
+        Assert.Equal("Headphones (USB Audio)", result);
+    }
+
+    [Fact]
+    public void ResolveMonitoredDevice_ReturnsDefaultDevice_WhenNoDeviceConfigured()
+    {
+        var result = StubResolveDevice(
+            "",
+            id => "Headphones (USB Audio)",
+            () => "Speakers (Realtek)",
+            (ex, id) => { },
+            (kind, name) => { });
+
+        Assert.Equal("Speakers (Realtek)", result);
+    }
+
+    [Fact]
+    public void ResolveMonitoredDevice_ReturnsDefaultDevice_WhenConfiguredDeviceNotFound()
+    {
+        var comException = new System.Runtime.InteropServices.COMException("not found", unchecked((int)0x80070490));
+
+        var result = StubResolveDevice(
+            "{0.0.0.00000000}.{missing}",
+            id => throw comException,
+            () => "Speakers (Realtek)",
+            (ex, id) => { },
+            (kind, name) => { });
+
+        Assert.Equal("Speakers (Realtek)", result);
+    }
+
+    #endregion
 }
 
