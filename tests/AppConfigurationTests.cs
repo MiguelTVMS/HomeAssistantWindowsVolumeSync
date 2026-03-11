@@ -477,4 +477,56 @@ public class AppConfigurationTests
         Assert.Equal("media_player.test", appConfig.TargetMediaPlayer);
         Assert.False(appConfig.StrictTLS);
     }
+
+    [Fact]
+    public void AudioDeviceId_ReturnsConfiguredValue()
+    {
+        // Arrange
+        var deviceId = "{0.0.0.00000000}.{12345678-1234-1234-1234-123456789abc}";
+        var configData = new Dictionary<string, string?>
+        {
+            { "HomeAssistant:AudioDeviceId", deviceId }
+        };
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        var appConfig = new AppConfiguration(configuration);
+
+        // Act & Assert
+        Assert.Equal(deviceId, appConfig.AudioDeviceId);
+    }
+
+    [Fact]
+    public void AudioDeviceId_ReturnsEmptyString_WhenConfiguredAsEmpty()
+    {
+        // Arrange
+        var configData = new Dictionary<string, string?>
+        {
+            { "HomeAssistant:AudioDeviceId", "" }
+        };
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        var appConfig = new AppConfiguration(configuration);
+
+        // Act & Assert
+        Assert.Equal("", appConfig.AudioDeviceId);
+    }
+
+    [Fact]
+    public void AudioDeviceId_ReturnsNull_WhenNotConfigured()
+    {
+        // Arrange
+        var configData = new Dictionary<string, string?>();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        var appConfig = new AppConfiguration(configuration);
+
+        // Act & Assert
+        Assert.Null(appConfig.AudioDeviceId);
+    }
 }

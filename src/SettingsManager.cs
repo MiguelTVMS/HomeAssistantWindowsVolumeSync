@@ -30,7 +30,7 @@ public class SettingsManager
     /// <summary>
     /// Saves the Home Assistant settings to appsettings.json and reloads configuration
     /// </summary>
-    public void SaveSettings(string webhookUrl, string webhookId, string targetMediaPlayer)
+    public void SaveSettings(string webhookUrl, string webhookId, string targetMediaPlayer, string audioDeviceId = "")
     {
         _logger?.LogInformation("Saving settings to {FilePath}", _settingsFilePath);
         _logger?.LogDebug("New settings - WebhookUrl: {Url}, WebhookId: {Id}, TargetMediaPlayer: {Player}",
@@ -69,6 +69,12 @@ public class SettingsManager
                 homeAssistantSettings["WebhookUrl"] = webhookUrl;
                 homeAssistantSettings["WebhookId"] = webhookId;
                 homeAssistantSettings["TargetMediaPlayer"] = targetMediaPlayer;
+                // Persist AudioDeviceId only when a specific device is selected.
+                // Omit (or remove) the key when empty so null and "" both mean "use Windows default".
+                if (string.IsNullOrEmpty(audioDeviceId))
+                    homeAssistantSettings.Remove("AudioDeviceId");
+                else
+                    homeAssistantSettings["AudioDeviceId"] = audioDeviceId;
 
                 settings[property.Name] = homeAssistantSettings;
             }
@@ -82,7 +88,7 @@ public class SettingsManager
         // If HomeAssistant section doesn't exist, create it
         if (!settings.ContainsKey("HomeAssistant"))
         {
-            settings["HomeAssistant"] = new Dictionary<string, object?>
+            var newSection = new Dictionary<string, object?>
             {
                 ["WebhookUrl"] = webhookUrl,
                 ["WebhookPath"] = "/api/webhook/",
@@ -90,6 +96,10 @@ public class SettingsManager
                 ["TargetMediaPlayer"] = targetMediaPlayer,
                 ["StrictTLS"] = true  // Default to secure
             };
+            // Only persist AudioDeviceId when a specific device is selected
+            if (!string.IsNullOrEmpty(audioDeviceId))
+                newSection["AudioDeviceId"] = audioDeviceId;
+            settings["HomeAssistant"] = newSection;
         }
 
         // Write the updated settings back to the file
@@ -120,7 +130,8 @@ public class SettingsManager
             {
                 if (string.Equals(_appConfiguration.WebhookUrl, webhookUrl, StringComparison.Ordinal) &&
                     string.Equals(_appConfiguration.WebhookId, webhookId, StringComparison.Ordinal) &&
-                    string.Equals(_appConfiguration.TargetMediaPlayer, targetMediaPlayer, StringComparison.Ordinal))
+                    string.Equals(_appConfiguration.TargetMediaPlayer, targetMediaPlayer, StringComparison.Ordinal) &&
+                    string.Equals(_appConfiguration.AudioDeviceId ?? "", audioDeviceId, StringComparison.Ordinal))
                 {
                     configUpdated = true;
                     break;

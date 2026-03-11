@@ -40,6 +40,15 @@ public interface IAppConfiguration
     string? TargetMediaPlayer { get; }
 
     /// <summary>
+    /// Gets the Windows audio device ID to monitor.
+    /// Empty string or null means use the Windows default output device.
+    /// The value is the NAudio <c>MMDevice.ID</c> Core Audio endpoint ID string
+    /// (for example <c>"{0.0.0.00000000}.{&lt;guid&gt;}"</c>) and should be treated
+    /// as an opaque identifier, not a plain GUID.
+    /// </summary>
+    string? AudioDeviceId { get; }
+
+    /// <summary>
     /// Gets whether strict TLS validation is enabled.
     /// Defaults to true for security.
     /// </summary>

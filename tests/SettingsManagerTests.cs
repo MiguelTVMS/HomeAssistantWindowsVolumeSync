@@ -331,4 +331,86 @@ public class SettingsManagerTests : IDisposable
   {
     return new SettingsManager(_testSettingsFile, null, null);
   }
+
+  [Fact]
+  public void SaveSettings_SavesAudioDeviceId_WhenProvided()
+  {
+    // Arrange
+    var settingsManager = CreateSettingsManagerWithoutConfig();
+    var deviceId = "{0.0.0.00000000}.{12345678-1234-1234-1234-123456789abc}";
+
+    // Act
+    settingsManager.SaveSettings("https://test.local", "test_webhook", "media_player.test", deviceId);
+
+    // Assert
+    var json = File.ReadAllText(_testSettingsFile);
+    Assert.Contains("AudioDeviceId", json);
+    Assert.Contains(deviceId, json);
+  }
+
+  [Fact]
+  public void SaveSettings_OmitsAudioDeviceId_WhenNotProvided()
+  {
+    // Arrange
+    var settingsManager = CreateSettingsManagerWithoutConfig();
+
+    // Act
+    settingsManager.SaveSettings("https://test.local", "test_webhook", "media_player.test");
+
+    // Assert - AudioDeviceId should be OMITTED when empty (null/empty = use Windows default, no key needed)
+    var json = File.ReadAllText(_testSettingsFile);
+    Assert.DoesNotContain("AudioDeviceId", json);
+  }
+
+  [Fact]
+  public void SaveSettings_UpdatesAudioDeviceId_InExistingFile()
+  {
+    // Arrange
+    var initialJson = """
+      {
+        "HomeAssistant": {
+          "WebhookUrl": "https://old.local",
+          "WebhookId": "old_webhook",
+          "TargetMediaPlayer": "media_player.old",
+          "AudioDeviceId": ""
+        }
+      }
+      """;
+    File.WriteAllText(_testSettingsFile, initialJson);
+    var settingsManager = CreateSettingsManagerWithoutConfig();
+    var newDeviceId = "{0.0.0.00000000}.{abcdef12-3456-7890-abcd-ef1234567890}";
+
+    // Act
+    settingsManager.SaveSettings("https://new.local", "new_webhook", "media_player.new", newDeviceId);
+
+    // Assert
+    var json = File.ReadAllText(_testSettingsFile);
+    Assert.Contains(newDeviceId, json);
+    Assert.Contains("https://new.local", json);
+  }
+
+  [Fact]
+  public void SaveSettings_RemovesAudioDeviceId_WhenSwitchedBackToDefault()
+  {
+    // Arrange — file has an existing specific device ID
+    var initialJson = """
+      {
+        "HomeAssistant": {
+          "WebhookUrl": "https://test.local",
+          "WebhookId": "test_webhook",
+          "TargetMediaPlayer": "media_player.test",
+          "AudioDeviceId": "{0.0.0.00000000}.{some-device-id}"
+        }
+      }
+      """;
+    File.WriteAllText(_testSettingsFile, initialJson);
+    var settingsManager = CreateSettingsManagerWithoutConfig();
+
+    // Act — save with empty audioDeviceId (= switch back to "Default")
+    settingsManager.SaveSettings("https://test.local", "test_webhook", "media_player.test", "");
+
+    // Assert — AudioDeviceId key should be removed
+    var json = File.ReadAllText(_testSettingsFile);
+    Assert.DoesNotContain("AudioDeviceId", json);
+  }
 }
