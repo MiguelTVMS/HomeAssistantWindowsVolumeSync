@@ -72,12 +72,34 @@ public class VolumeWatcherService : BackgroundService
 
         try
         {
-            // Initialize the device enumerator and get the default audio endpoint
+            // Initialize the device enumerator and get the configured audio endpoint
             _deviceEnumerator = new MMDeviceEnumerator();
 
             try
             {
-                _defaultDevice = _deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                var configuredDeviceId = _configuration.AudioDeviceId;
+                if (!string.IsNullOrEmpty(configuredDeviceId))
+                {
+                    try
+                    {
+                        _defaultDevice = _deviceEnumerator.GetDevice(configuredDeviceId);
+                        _logger.LogInformation("Using configured audio device: {DeviceName} ({DeviceId})",
+                            _defaultDevice.FriendlyName, configuredDeviceId);
+                    }
+                    catch (System.Runtime.InteropServices.COMException ex)
+                    {
+                        _logger.LogWarning(ex,
+                            "Configured audio device {DeviceId} not found. Falling back to Windows default output.",
+                            configuredDeviceId);
+                        _defaultDevice = _deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                    }
+                }
+                else
+                {
+                    _defaultDevice = _deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                    _logger.LogInformation("Using Windows default audio output device: {DeviceName}",
+                        _defaultDevice.FriendlyName);
+                }
             }
             catch (System.Runtime.InteropServices.COMException ex) when (ex.HResult == unchecked((int)0x80070490))
             {
