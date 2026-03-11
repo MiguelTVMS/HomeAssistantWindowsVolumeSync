@@ -214,21 +214,17 @@ public class AppLoggerTests
     {
         // Arrange
         var exception = new Exception("Startup exception");
-        var expectedLogPath = Path.Combine(AppContext.BaseDirectory, "startup-error.log");
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        var expectedLogPath = Path.Combine(tempDir, "startup-error.log");
 
-        // Clean up any existing log file
-        if (File.Exists(expectedLogPath))
-        {
-            File.Delete(expectedLogPath);
-        }
+        // Use internal constructor so the log path is fully hermetic (temp dir only)
+        var appLogger = new AppLogger(_mockLogger.Object, expectedLogPath);
 
         try
         {
             // Act
-            _appLogger.LogStartupError(exception);
-
-            // Give file operations time to complete
-            Thread.Sleep(100);
+            appLogger.LogStartupError(exception);
 
             // Assert - Verify file was created
             Assert.True(File.Exists(expectedLogPath), "Startup error log file should be created");
@@ -251,19 +247,8 @@ public class AppLoggerTests
         }
         finally
         {
-            // Clean up
-            if (File.Exists(expectedLogPath))
-            {
-                Thread.Sleep(100);
-                try
-                {
-                    File.Delete(expectedLogPath);
-                }
-                catch
-                {
-                    // Ignore cleanup failures
-                }
-            }
+            // Clean up temp directory
+            try { Directory.Delete(tempDir, recursive: true); } catch { /* ignore */ }
         }
     }
 
