@@ -545,11 +545,12 @@ public class VolumeWatcherServiceTests
 
     #endregion
 
-    #region ResolveMonitoredDevice tests — string stub, no COM/Windows required
+    #region ResolveMonitoredDevice tests — string stub, no COM/NAudio references
 
     // ResolveMonitoredDevice<TDevice> is generic; we use string as the stub device type
-    // so these tests are fully cross-platform and require no Windows/COM dependencies.
-    // [WindowsFact] is NOT used here intentionally — NAudio types are not referenced.
+    // so these tests exercise pure logic only and introduce no additional Windows/COM/NAudio
+    // dependencies beyond the test project's net8.0-windows target.
+    // [WindowsFact] is NOT used here intentionally because no NAudio or COM types are referenced.
 
     private static string? StubResolveDevice(
         string? configuredDeviceId,
