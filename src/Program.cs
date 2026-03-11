@@ -26,35 +26,52 @@ try
 
     var builder = Host.CreateApplicationBuilder(args);
 
-    // Insert the user config from %APPDATA% BEFORE environment variables so that the
-    // precedence order is (lowest → highest):
-    //   shipped appsettings.json  <  user config (%APPDATA%)  <  env vars  <  CLI args
-    // This allows the app to work when installed to a read-only location (e.g. Program
-    // Files) while still letting env vars / CLI args override for ops/debug scenarios.
+    // Rebuild the configuration source list in explicit precedence order (lowest → highest):
+    //   shipped appsettings.json (install dir)  <  user config (%APPDATA%)  <  env vars  <  CLI args
+    //
+    // We cannot reliably use Sources.Insert() with ConfigurationManager — it uses ReloadSources()
+    // internally and the insertion index is not guaranteed to survive the rebuild. Instead we
+    // clear the existing sources, then add back the providers we need in the correct order.
+    //
+    // The host framework adds these sources automatically before we get here:
+    //   [0] JsonConfiguration (appsettings.json, from AppContext.BaseDirectory)
+    //   [1] JsonConfiguration (appsettings.{env}.json, from AppContext.BaseDirectory)
+    //   [2] EnvironmentVariables
+    //   [3] CommandLine
+    //
+    // We want to insert the user config from %APPDATA% between the shipped JSON files and
+    // the env vars, so env vars and CLI args can still override everything for ops/debug.
     var sources = builder.Configuration.Sources;
+    var existingSources = sources.ToList();   // snapshot before clearing
+    sources.Clear();
 
-    // Build the user config source with an explicit PhysicalFileProvider so it resolves
-    // against %APPDATA%, not AppContext.BaseDirectory (which is the install directory).
-    // Without this, JsonConfigurationSource.FileProvider defaults to null and the main
-    // builder resolves it using its own base path (the install dir), causing the user
-    // config to be silently ignored.
+    // Re-add all non-EnvironmentVariables, non-CommandLine sources first (shipped JSON files)
+    foreach (var source in existingSources)
+    {
+        if (source is Microsoft.Extensions.Configuration.EnvironmentVariables.EnvironmentVariablesConfigurationSource ||
+            source is Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationSource)
+            continue;
+        sources.Add(source);
+    }
+
+    // Add user config from %APPDATA% with an explicit PhysicalFileProvider so it resolves
+    // against %APPDATA% and not AppContext.BaseDirectory (the install dir).
     var userConfigDirectory = Path.GetDirectoryName(ConfigurationPaths.GetUserConfigFilePath())!;
-    var userConfigSource = new JsonConfigurationSource
+    sources.Add(new JsonConfigurationSource
     {
         Path = Path.GetFileName(ConfigurationPaths.GetUserConfigFilePath()),
         Optional = true,
         ReloadOnChange = true,
         FileProvider = new PhysicalFileProvider(userConfigDirectory)
-    };
+    });
 
-    // Insert before the first EnvironmentVariables source (after all shipped JSON files).
-    var envVarIndex = sources
-        .Select((s, i) => (s, i))
-        .Where(x => x.s is Microsoft.Extensions.Configuration.EnvironmentVariables.EnvironmentVariablesConfigurationSource)
-        .Select(x => (int?)x.i)
-        .FirstOrDefault() ?? sources.Count;
-
-    sources.Insert(envVarIndex, userConfigSource);
+    // Re-add env vars and CLI args last (highest priority)
+    foreach (var source in existingSources)
+    {
+        if (source is Microsoft.Extensions.Configuration.EnvironmentVariables.EnvironmentVariablesConfigurationSource ||
+            source is Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationSource)
+            sources.Add(source);
+    }
 
     // Configure logging from appsettings.json
     builder.Logging.ClearProviders();
