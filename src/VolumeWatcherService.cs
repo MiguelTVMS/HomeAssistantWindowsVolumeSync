@@ -34,31 +34,39 @@ public class VolumeWatcherService : BackgroundService
     /// <returns>The resolved <see cref="MMDevice"/>, or <c>null</c> if no device is available.</returns>
     internal static MMDevice? ResolveMonitoredDevice(
         string? configuredDeviceId,
-        Func<string, MMDevice> getDevice,
-        Func<MMDevice> getDefaultDevice,
+        Func<string, MMDevice?> getDevice,
+        Func<MMDevice?> getDefaultDevice,
         Action<System.Runtime.InteropServices.COMException, string> logWarning,
         Action<string, string?> logInfo)
     {
+        MMDevice? device = null;
+
         if (!string.IsNullOrEmpty(configuredDeviceId))
         {
             try
             {
-                var device = getDevice(configuredDeviceId);
-                logInfo("configured", device?.FriendlyName);
-                return device;
+                device = getDevice(configuredDeviceId);
+
+                if (device is not null)
+                {
+                    logInfo("configured", device.FriendlyName);
+                    return device;
+                }
             }
             catch (System.Runtime.InteropServices.COMException ex)
             {
                 logWarning(ex, configuredDeviceId);
-                return getDefaultDevice();
             }
         }
-        else
+
+        device = getDefaultDevice();
+
+        if (device is not null)
         {
-            var device = getDefaultDevice();
-            logInfo("default", device?.FriendlyName);
-            return device;
+            logInfo("default", device.FriendlyName);
         }
+
+        return device;
     }
 
     public VolumeWatcherService(
@@ -119,8 +127,8 @@ public class VolumeWatcherService : BackgroundService
                 var configuredDeviceId = _configuration.AudioDeviceId;
                 _monitoredDevice = ResolveMonitoredDevice(
                     configuredDeviceId,
-                    id => _deviceEnumerator.GetDevice(id),
-                    () => _deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia),
+                    id => (MMDevice?)_deviceEnumerator.GetDevice(id),
+                    () => (MMDevice?)_deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia),
                     (ex, id) => _logger.LogWarning(ex,
                         "Configured audio device {DeviceId} not found. Falling back to Windows default output.", id),
                     (kind, name) =>

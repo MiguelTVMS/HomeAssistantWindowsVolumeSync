@@ -349,7 +349,7 @@ public class SettingsManagerTests : IDisposable
   }
 
   [Fact]
-  public void SaveSettings_SavesEmptyAudioDeviceId_WhenNotProvided()
+  public void SaveSettings_OmitsAudioDeviceId_WhenNotProvided()
   {
     // Arrange
     var settingsManager = CreateSettingsManagerWithoutConfig();
