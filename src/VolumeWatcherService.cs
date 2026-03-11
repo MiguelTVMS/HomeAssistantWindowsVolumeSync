@@ -14,13 +14,52 @@ public class VolumeWatcherService : BackgroundService
     private readonly IHomeAssistantClient _homeAssistantClient;
     private readonly IAppConfiguration _configuration;
     private MMDeviceEnumerator? _deviceEnumerator;
-    private MMDevice? _defaultDevice;
+    private MMDevice? _monitoredDevice;
     private AudioEndpointVolumeNotificationDelegate? _volumeDelegate;
     private volatile bool _isPaused;
     private CancellationTokenSource? _debounceCts;
     private float _lastVolumeScalar;
     private bool _lastMuteState;
     private readonly object _debounceLock = new object();
+
+    /// <summary>
+    /// Resolves which audio device to monitor based on the configured device ID.
+    /// Extracted for testability — callers inject the enumerator functions.
+    /// </summary>
+    /// <param name="configuredDeviceId">Value of <see cref="IAppConfiguration.AudioDeviceId"/>.</param>
+    /// <param name="getDevice">Delegate wrapping <c>MMDeviceEnumerator.GetDevice(id)</c>.</param>
+    /// <param name="getDefaultDevice">Delegate wrapping <c>MMDeviceEnumerator.GetDefaultAudioEndpoint</c>.</param>
+    /// <param name="logWarning">Delegate for warning logging on fallback.</param>
+    /// <param name="logInfo">Delegate for info logging on successful resolution.</param>
+    /// <returns>The resolved <see cref="MMDevice"/>, or <c>null</c> if no device is available.</returns>
+    internal static MMDevice? ResolveMonitoredDevice(
+        string? configuredDeviceId,
+        Func<string, MMDevice> getDevice,
+        Func<MMDevice> getDefaultDevice,
+        Action<System.Runtime.InteropServices.COMException, string> logWarning,
+        Action<string, string?> logInfo)
+    {
+        if (!string.IsNullOrEmpty(configuredDeviceId))
+        {
+            try
+            {
+                var device = getDevice(configuredDeviceId);
+                logInfo("configured", device.FriendlyName);
+                return device;
+            }
+            catch (System.Runtime.InteropServices.COMException ex)
+            {
+                logWarning(ex, configuredDeviceId);
+                return getDefaultDevice();
+            }
+        }
+        else
+        {
+            var device = getDefaultDevice();
+            logInfo("default", device.FriendlyName);
+            return device;
+        }
+    }
 
     public VolumeWatcherService(
         ILogger<VolumeWatcherService> logger,
@@ -47,15 +86,15 @@ public class VolumeWatcherService : BackgroundService
     /// <returns>Tuple containing (volume percent, is muted), or null if no audio device available.</returns>
     public virtual (int volumePercent, bool isMuted)? GetCurrentVolumeState()
     {
-        if (_defaultDevice?.AudioEndpointVolume == null)
+        if (_monitoredDevice?.AudioEndpointVolume == null)
         {
             return null;
         }
 
         try
         {
-            var volumeScalar = _defaultDevice.AudioEndpointVolume.MasterVolumeLevelScalar;
-            var isMuted = _defaultDevice.AudioEndpointVolume.Mute;
+            var volumeScalar = _monitoredDevice.AudioEndpointVolume.MasterVolumeLevelScalar;
+            var isMuted = _monitoredDevice.AudioEndpointVolume.Mute;
             var volumePercent = (int)Math.Round(volumeScalar * 100);
             return (volumePercent, isMuted);
         }
@@ -78,48 +117,40 @@ public class VolumeWatcherService : BackgroundService
             try
             {
                 var configuredDeviceId = _configuration.AudioDeviceId;
-                if (!string.IsNullOrEmpty(configuredDeviceId))
-                {
-                    try
+                _monitoredDevice = ResolveMonitoredDevice(
+                    configuredDeviceId,
+                    id => _deviceEnumerator.GetDevice(id),
+                    () => _deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia),
+                    (ex, id) => _logger.LogWarning(ex,
+                        "Configured audio device {DeviceId} not found. Falling back to Windows default output.", id),
+                    (kind, name) =>
                     {
-                        _defaultDevice = _deviceEnumerator.GetDevice(configuredDeviceId);
-                        _logger.LogInformation("Using configured audio device: {DeviceName} ({DeviceId})",
-                            _defaultDevice.FriendlyName, configuredDeviceId);
-                    }
-                    catch (System.Runtime.InteropServices.COMException ex)
-                    {
-                        _logger.LogWarning(ex,
-                            "Configured audio device {DeviceId} not found. Falling back to Windows default output.",
-                            configuredDeviceId);
-                        _defaultDevice = _deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-                    }
-                }
-                else
-                {
-                    _defaultDevice = _deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-                    _logger.LogInformation("Using Windows default audio output device: {DeviceName}",
-                        _defaultDevice.FriendlyName);
-                }
+                        if (kind == "configured")
+                            _logger.LogInformation("Using configured audio device: {DeviceName} ({DeviceId})",
+                                name, configuredDeviceId);
+                        else
+                            _logger.LogInformation("Using Windows default audio output device: {DeviceName}", name);
+                    });
             }
             catch (System.Runtime.InteropServices.COMException ex) when (ex.HResult == unchecked((int)0x80070490))
             {
                 // Element not found - no audio device available
                 _logger.LogWarning("No default audio endpoint found. Service will continue but volume monitoring is disabled.");
-                _defaultDevice = null;
+                _monitoredDevice = null;
             }
 
-            if (_defaultDevice?.AudioEndpointVolume != null)
+            if (_monitoredDevice?.AudioEndpointVolume != null)
             {
                 // Create a delegate that handles volume change events
                 _volumeDelegate = new AudioEndpointVolumeNotificationDelegate(OnVolumeNotification);
-                _defaultDevice.AudioEndpointVolume.OnVolumeNotification += _volumeDelegate;
+                _monitoredDevice.AudioEndpointVolume.OnVolumeNotification += _volumeDelegate;
 
                 _logger.LogInformation("Volume watcher initialized successfully. Listening for volume changes...");
 
                 // Send initial volume state
                 await SendVolumeUpdateAsync(
-                    _defaultDevice.AudioEndpointVolume.MasterVolumeLevelScalar,
-                    _defaultDevice.AudioEndpointVolume.Mute);
+                    _monitoredDevice.AudioEndpointVolume.MasterVolumeLevelScalar,
+                    _monitoredDevice.AudioEndpointVolume.Mute);
             }
             else
             {
@@ -231,9 +262,9 @@ public class VolumeWatcherService : BackgroundService
 
     public override void Dispose()
     {
-        if (_defaultDevice?.AudioEndpointVolume != null && _volumeDelegate != null)
+        if (_monitoredDevice?.AudioEndpointVolume != null && _volumeDelegate != null)
         {
-            _defaultDevice.AudioEndpointVolume.OnVolumeNotification -= _volumeDelegate;
+            _monitoredDevice.AudioEndpointVolume.OnVolumeNotification -= _volumeDelegate;
         }
 
         try
@@ -246,7 +277,7 @@ public class VolumeWatcherService : BackgroundService
         }
 
         _debounceCts?.Dispose();
-        _defaultDevice?.Dispose();
+        _monitoredDevice?.Dispose();
         _deviceEnumerator?.Dispose();
 
         base.Dispose();

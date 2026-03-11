@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Moq;
+using NAudio.CoreAudioApi;
 using Xunit;
 
 namespace HomeAssistantWindowsVolumeSync.Tests;
@@ -541,6 +542,137 @@ public class VolumeWatcherServiceTests
         // Assert - Timer should be disposed without throwing
         // Multiple disposes should also be safe
         service.Dispose();
+    }
+
+    #endregion
+
+    #region ResolveMonitoredDevice tests (pure logic, no COM/Windows required)
+
+    [Fact]
+    public void ResolveMonitoredDevice_UsesGetDevice_WhenAudioDeviceIdIsConfigured()
+    {
+        // Arrange
+        var configuredId = "{0.0.0.00000000}.{test-device-id}";
+        var getDeviceCalled = false;
+        var getDefaultCalled = false;
+        // We cannot construct MMDevice without COM; use null to test routing logic only
+        MMDevice? stubDevice = null;
+
+        // Act
+        var result = VolumeWatcherService.ResolveMonitoredDevice(
+            configuredId,
+            id => { getDeviceCalled = true; return stubDevice!; },
+            () => { getDefaultCalled = true; return stubDevice!; },
+            (ex, id) => { },
+            (kind, name) => { });
+
+        // Assert
+        Assert.True(getDeviceCalled, "GetDevice should be called when AudioDeviceId is configured");
+        Assert.False(getDefaultCalled, "GetDefaultAudioEndpoint should NOT be called when a specific device is configured");
+    }
+
+    [Fact]
+    public void ResolveMonitoredDevice_UsesGetDefaultDevice_WhenAudioDeviceIdIsEmpty()
+    {
+        // Arrange
+        var getDeviceCalled = false;
+        var getDefaultCalled = false;
+        MMDevice? stubDevice = null;
+
+        // Act
+        VolumeWatcherService.ResolveMonitoredDevice(
+            "",
+            id => { getDeviceCalled = true; return stubDevice!; },
+            () => { getDefaultCalled = true; return stubDevice!; },
+            (ex, id) => { },
+            (kind, name) => { });
+
+        // Assert
+        Assert.False(getDeviceCalled, "GetDevice should NOT be called when AudioDeviceId is empty");
+        Assert.True(getDefaultCalled, "GetDefaultAudioEndpoint should be called when AudioDeviceId is empty");
+    }
+
+    [Fact]
+    public void ResolveMonitoredDevice_UsesGetDefaultDevice_WhenAudioDeviceIdIsNull()
+    {
+        // Arrange
+        var getDeviceCalled = false;
+        var getDefaultCalled = false;
+        MMDevice? stubDevice = null;
+
+        // Act
+        VolumeWatcherService.ResolveMonitoredDevice(
+            null,
+            id => { getDeviceCalled = true; return stubDevice!; },
+            () => { getDefaultCalled = true; return stubDevice!; },
+            (ex, id) => { },
+            (kind, name) => { });
+
+        // Assert
+        Assert.False(getDeviceCalled, "GetDevice should NOT be called when AudioDeviceId is null");
+        Assert.True(getDefaultCalled, "GetDefaultAudioEndpoint should be called when AudioDeviceId is null");
+    }
+
+    [Fact]
+    public void ResolveMonitoredDevice_FallsBackToDefault_WhenConfiguredDeviceNotFound()
+    {
+        // Arrange
+        var configuredId = "{0.0.0.00000000}.{missing-device-id}";
+        var comException = new System.Runtime.InteropServices.COMException("device not found", unchecked((int)0x80070490));
+        var warningLogged = false;
+        var getDefaultCalled = false;
+        MMDevice? stubDevice = null;
+
+        // Act
+        VolumeWatcherService.ResolveMonitoredDevice(
+            configuredId,
+            id => throw comException,
+            () => { getDefaultCalled = true; return stubDevice!; },
+            (ex, id) => { warningLogged = true; },
+            (kind, name) => { });
+
+        // Assert
+        Assert.True(warningLogged, "A warning should be logged when the configured device is not found");
+        Assert.True(getDefaultCalled, "GetDefaultAudioEndpoint should be called as fallback when configured device is not found");
+    }
+
+    [Fact]
+    public void ResolveMonitoredDevice_LogsConfiguredKind_WhenSpecificDeviceSelected()
+    {
+        // Arrange
+        var configuredId = "{0.0.0.00000000}.{test-device-id}";
+        var loggedKind = "";
+        MMDevice? stubDevice = null;
+
+        // Act
+        VolumeWatcherService.ResolveMonitoredDevice(
+            configuredId,
+            id => stubDevice!,
+            () => stubDevice!,
+            (ex, id) => { },
+            (kind, name) => { loggedKind = kind; });
+
+        // Assert
+        Assert.Equal("configured", loggedKind);
+    }
+
+    [Fact]
+    public void ResolveMonitoredDevice_LogsDefaultKind_WhenNoDeviceConfigured()
+    {
+        // Arrange
+        var loggedKind = "";
+        MMDevice? stubDevice = null;
+
+        // Act
+        VolumeWatcherService.ResolveMonitoredDevice(
+            "",
+            id => stubDevice!,
+            () => stubDevice!,
+            (ex, id) => { },
+            (kind, name) => { loggedKind = kind; });
+
+        // Assert
+        Assert.Equal("default", loggedKind);
     }
 
     #endregion

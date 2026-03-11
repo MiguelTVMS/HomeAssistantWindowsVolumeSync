@@ -357,11 +357,9 @@ public class SettingsManagerTests : IDisposable
     // Act
     settingsManager.SaveSettings("https://test.local", "test_webhook", "media_player.test");
 
-    // Assert
+    // Assert - AudioDeviceId should be OMITTED when empty (null/empty = use Windows default, no key needed)
     var json = File.ReadAllText(_testSettingsFile);
-    Assert.Contains("AudioDeviceId", json);
-    // Empty string value
-    Assert.Contains("\"AudioDeviceId\": \"\"", json);
+    Assert.DoesNotContain("AudioDeviceId", json);
   }
 
   [Fact]
@@ -389,5 +387,30 @@ public class SettingsManagerTests : IDisposable
     var json = File.ReadAllText(_testSettingsFile);
     Assert.Contains(newDeviceId, json);
     Assert.Contains("https://new.local", json);
+  }
+
+  [Fact]
+  public void SaveSettings_RemovesAudioDeviceId_WhenSwitchedBackToDefault()
+  {
+    // Arrange — file has an existing specific device ID
+    var initialJson = """
+      {
+        "HomeAssistant": {
+          "WebhookUrl": "https://test.local",
+          "WebhookId": "test_webhook",
+          "TargetMediaPlayer": "media_player.test",
+          "AudioDeviceId": "{0.0.0.00000000}.{some-device-id}"
+        }
+      }
+      """;
+    File.WriteAllText(_testSettingsFile, initialJson);
+    var settingsManager = CreateSettingsManagerWithoutConfig();
+
+    // Act — save with empty audioDeviceId (= switch back to "Default")
+    settingsManager.SaveSettings("https://test.local", "test_webhook", "media_player.test", "");
+
+    // Assert — AudioDeviceId key should be removed
+    var json = File.ReadAllText(_testSettingsFile);
+    Assert.DoesNotContain("AudioDeviceId", json);
   }
 }
