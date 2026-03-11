@@ -23,7 +23,8 @@ public static class TestConfigurationHelper
         string webhookId = "test_webhook",
         string webhookPath = "/api/webhook/",
         string? targetMediaPlayer = null,
-        bool strictTls = true)
+        bool strictTls = true,
+        string audioDeviceId = "")
     {
         var configData = new Dictionary<string, string?>
         {
@@ -31,7 +32,8 @@ public static class TestConfigurationHelper
             { "HomeAssistant:WebhookPath", webhookPath },
             { "HomeAssistant:WebhookId", webhookId },
             { "HomeAssistant:TargetMediaPlayer", targetMediaPlayer ?? "media_player.test" },
-            { "HomeAssistant:StrictTLS", strictTls.ToString() }
+            { "HomeAssistant:StrictTLS", strictTls.ToString() },
+            { "HomeAssistant:AudioDeviceId", audioDeviceId }
         };
 
         return CreateConfiguration(configData);

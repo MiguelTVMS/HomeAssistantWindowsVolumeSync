@@ -409,7 +409,7 @@ public class SystemTrayService : BackgroundService
             var settingsManager = new SettingsManager(_configuration, settingsManagerLogger);
             _settingsForm = new SettingsForm(
                 _configuration,
-                (url, id, player) => settingsManager.SaveSettings(url, id, player));
+                (url, id, player, deviceId) => settingsManager.SaveSettings(url, id, player, deviceId));
 
             // Handle form closing to clear the reference
             _settingsForm.FormClosed += (s, args) =>

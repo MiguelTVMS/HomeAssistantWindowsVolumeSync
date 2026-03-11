@@ -247,4 +247,38 @@ public class IAppConfigurationTests
         Assert.Equal("https://test1.local/webhook", appConfig1.WebhookUrl);
         Assert.Equal("https://test2.local/webhook", appConfig2.WebhookUrl);
     }
+
+    [Fact]
+    public void AudioDeviceId_Interface_ReturnsConfiguredValue()
+    {
+        // Arrange
+        var deviceId = "{0.0.0.00000000}.{aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee}";
+        var configData = new Dictionary<string, string?>
+        {
+            { "HomeAssistant:AudioDeviceId", deviceId }
+        };
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        IAppConfiguration appConfig = new AppConfiguration(configuration);
+
+        // Act & Assert
+        Assert.Equal(deviceId, appConfig.AudioDeviceId);
+    }
+
+    [Fact]
+    public void AudioDeviceId_Interface_ReturnsNull_WhenNotConfigured()
+    {
+        // Arrange
+        var configData = new Dictionary<string, string?>();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        IAppConfiguration appConfig = new AppConfiguration(configuration);
+
+        // Act & Assert
+        Assert.Null(appConfig.AudioDeviceId);
+    }
 }

@@ -30,7 +30,7 @@ public class SettingsManager
     /// <summary>
     /// Saves the Home Assistant settings to appsettings.json and reloads configuration
     /// </summary>
-    public void SaveSettings(string webhookUrl, string webhookId, string targetMediaPlayer)
+    public void SaveSettings(string webhookUrl, string webhookId, string targetMediaPlayer, string audioDeviceId = "")
     {
         _logger?.LogInformation("Saving settings to {FilePath}", _settingsFilePath);
         _logger?.LogDebug("New settings - WebhookUrl: {Url}, WebhookId: {Id}, TargetMediaPlayer: {Player}",
@@ -69,6 +69,7 @@ public class SettingsManager
                 homeAssistantSettings["WebhookUrl"] = webhookUrl;
                 homeAssistantSettings["WebhookId"] = webhookId;
                 homeAssistantSettings["TargetMediaPlayer"] = targetMediaPlayer;
+                homeAssistantSettings["AudioDeviceId"] = audioDeviceId;
 
                 settings[property.Name] = homeAssistantSettings;
             }
@@ -88,6 +89,7 @@ public class SettingsManager
                 ["WebhookPath"] = "/api/webhook/",
                 ["WebhookId"] = webhookId,
                 ["TargetMediaPlayer"] = targetMediaPlayer,
+                ["AudioDeviceId"] = audioDeviceId,
                 ["StrictTLS"] = true  // Default to secure
             };
         }
@@ -120,7 +122,8 @@ public class SettingsManager
             {
                 if (string.Equals(_appConfiguration.WebhookUrl, webhookUrl, StringComparison.Ordinal) &&
                     string.Equals(_appConfiguration.WebhookId, webhookId, StringComparison.Ordinal) &&
-                    string.Equals(_appConfiguration.TargetMediaPlayer, targetMediaPlayer, StringComparison.Ordinal))
+                    string.Equals(_appConfiguration.TargetMediaPlayer, targetMediaPlayer, StringComparison.Ordinal) &&
+                    string.Equals(_appConfiguration.AudioDeviceId ?? "", audioDeviceId, StringComparison.Ordinal))
                 {
                     configUpdated = true;
                     break;

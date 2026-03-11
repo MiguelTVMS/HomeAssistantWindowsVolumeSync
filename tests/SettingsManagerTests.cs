@@ -331,4 +331,63 @@ public class SettingsManagerTests : IDisposable
   {
     return new SettingsManager(_testSettingsFile, null, null);
   }
+
+  [Fact]
+  public void SaveSettings_SavesAudioDeviceId_WhenProvided()
+  {
+    // Arrange
+    var settingsManager = CreateSettingsManagerWithoutConfig();
+    var deviceId = "{0.0.0.00000000}.{12345678-1234-1234-1234-123456789abc}";
+
+    // Act
+    settingsManager.SaveSettings("https://test.local", "test_webhook", "media_player.test", deviceId);
+
+    // Assert
+    var json = File.ReadAllText(_testSettingsFile);
+    Assert.Contains("AudioDeviceId", json);
+    Assert.Contains(deviceId, json);
+  }
+
+  [Fact]
+  public void SaveSettings_SavesEmptyAudioDeviceId_WhenNotProvided()
+  {
+    // Arrange
+    var settingsManager = CreateSettingsManagerWithoutConfig();
+
+    // Act
+    settingsManager.SaveSettings("https://test.local", "test_webhook", "media_player.test");
+
+    // Assert
+    var json = File.ReadAllText(_testSettingsFile);
+    Assert.Contains("AudioDeviceId", json);
+    // Empty string value
+    Assert.Contains("\"AudioDeviceId\": \"\"", json);
+  }
+
+  [Fact]
+  public void SaveSettings_UpdatesAudioDeviceId_InExistingFile()
+  {
+    // Arrange
+    var initialJson = """
+      {
+        "HomeAssistant": {
+          "WebhookUrl": "https://old.local",
+          "WebhookId": "old_webhook",
+          "TargetMediaPlayer": "media_player.old",
+          "AudioDeviceId": ""
+        }
+      }
+      """;
+    File.WriteAllText(_testSettingsFile, initialJson);
+    var settingsManager = CreateSettingsManagerWithoutConfig();
+    var newDeviceId = "{0.0.0.00000000}.{abcdef12-3456-7890-abcd-ef1234567890}";
+
+    // Act
+    settingsManager.SaveSettings("https://new.local", "new_webhook", "media_player.new", newDeviceId);
+
+    // Assert
+    var json = File.ReadAllText(_testSettingsFile);
+    Assert.Contains(newDeviceId, json);
+    Assert.Contains("https://new.local", json);
+  }
 }

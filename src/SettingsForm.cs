@@ -1,3 +1,4 @@
+using NAudio.CoreAudioApi;
 using System.Windows.Forms;
 
 namespace HomeAssistantWindowsVolumeSync;
@@ -8,7 +9,7 @@ namespace HomeAssistantWindowsVolumeSync;
 public class SettingsForm : Form
 {
     private readonly IAppConfiguration _configuration;
-    private readonly Action<string, string, string> _saveSettings;
+    private readonly Action<string, string, string, string> _saveSettings;
 
     private static readonly System.Drawing.Font _labelFont = new System.Drawing.Font("Segoe UI", 9F);
     private static readonly System.Drawing.Font _textBoxFont = new System.Drawing.Font("Segoe UI", 9F);
@@ -18,6 +19,7 @@ public class SettingsForm : Form
     private TextBox _webhookUrlTextBox = null!;
     private TextBox _webhookIdTextBox = null!;
     private TextBox _targetMediaPlayerTextBox = null!;
+    private ComboBox _audioDeviceComboBox = null!;
     private CheckBox _runOnStartupCheckBox = null!;
     private Button _saveButton = null!;
     private Button _cancelButton = null!;
@@ -25,13 +27,18 @@ public class SettingsForm : Form
     private Label _webhookUrlLabel = null!;
     private Label _webhookIdLabel = null!;
     private Label _targetMediaPlayerLabel = null!;
+    private Label _audioDeviceLabel = null!;
     private ToolTip _toolTip = null!;
 
-    public SettingsForm(IAppConfiguration configuration, Action<string, string, string> saveSettings)
+    // Stores (deviceId, displayName) pairs for the combo box items
+    private readonly List<(string Id, string Name)> _audioDevices = new();
+
+    public SettingsForm(IAppConfiguration configuration, Action<string, string, string, string> saveSettings)
     {
         _configuration = configuration;
         _saveSettings = saveSettings;
         InitializeComponents();
+        PopulateAudioDevices();
         LoadSettings();
     }
 
@@ -40,7 +47,7 @@ public class SettingsForm : Form
         // Form settings
         Text = "Home Assistant Volume Sync - Settings";
         Width = 600;
-        Height = 330;
+        Height = 390;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
@@ -123,12 +130,38 @@ public class SettingsForm : Form
         };
         Controls.Add(_targetMediaPlayerTextBox);
 
+        // Audio Device Label
+        _audioDeviceLabel = new Label
+        {
+            Text = "Audio Device to Monitor:",
+            Left = 20,
+            Top = 200,
+            Width = 200,
+            Font = _labelFont
+        };
+        Controls.Add(_audioDeviceLabel);
+
+        // Audio Device ComboBox
+        _audioDeviceComboBox = new ComboBox
+        {
+            Left = 20,
+            Top = 225,
+            Width = 540,
+            Font = _textBoxFont,
+            DropDownStyle = ComboBoxStyle.DropDownList
+        };
+        _toolTip.SetToolTip(_audioDeviceComboBox,
+            "Select which Windows audio output device to monitor.\n" +
+            "\"Default\" always follows the current Windows default output device.\n" +
+            "A specific device is used even if you switch your Windows default.");
+        Controls.Add(_audioDeviceComboBox);
+
         // Run on Startup CheckBox
         _runOnStartupCheckBox = new CheckBox
         {
             Text = "Run when Windows starts",
             Left = 20,
-            Top = 200,
+            Top = 265,
             Width = 540,
             Font = _textBoxFont
         };
@@ -188,12 +221,52 @@ public class SettingsForm : Form
         CancelButton = _cancelButton;
     }
 
+    /// <summary>
+    /// Enumerates active Windows audio output devices and populates the combo box.
+    /// Called once when the form opens so newly connected devices are always visible.
+    /// </summary>
+    private void PopulateAudioDevices()
+    {
+        _audioDevices.Clear();
+        _audioDeviceComboBox.Items.Clear();
+
+        // First item: always "Default" — uses Windows default output (empty device ID)
+        _audioDevices.Add(("", "Default (Windows default output)"));
+        _audioDeviceComboBox.Items.Add("Default (Windows default output)");
+
+        try
+        {
+            using var enumerator = new MMDeviceEnumerator();
+            var devices = enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active);
+            foreach (var device in devices)
+            {
+                _audioDevices.Add((device.ID, device.FriendlyName));
+                _audioDeviceComboBox.Items.Add(device.FriendlyName);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Non-fatal — user can still see "Default" and save other settings
+            _toolTip.SetToolTip(_audioDeviceComboBox,
+                $"Could not enumerate audio devices: {ex.Message}\n" +
+                "Only the default device option is available.");
+        }
+
+        _audioDeviceComboBox.SelectedIndex = 0;
+    }
+
     private void LoadSettings()
     {
         _webhookUrlTextBox.Text = _configuration.WebhookUrl ?? "";
         _webhookIdTextBox.Text = _configuration.WebhookId ?? "";
         _targetMediaPlayerTextBox.Text = _configuration.TargetMediaPlayer ?? "";
         _runOnStartupCheckBox.Checked = WindowsStartupManager.IsStartupEnabled();
+
+        // Select the configured device in the combo box
+        var configuredDeviceId = _configuration.AudioDeviceId ?? "";
+        var deviceIndex = _audioDevices.FindIndex(d =>
+            string.Equals(d.Id, configuredDeviceId, StringComparison.OrdinalIgnoreCase));
+        _audioDeviceComboBox.SelectedIndex = deviceIndex >= 0 ? deviceIndex : 0;
     }
 
     private void OnSaveClick(object? sender, EventArgs e)
@@ -201,6 +274,9 @@ public class SettingsForm : Form
         var webhookUrl = _webhookUrlTextBox.Text.Trim();
         var webhookId = _webhookIdTextBox.Text.Trim();
         var targetMediaPlayer = _targetMediaPlayerTextBox.Text.Trim();
+        var audioDeviceId = _audioDeviceComboBox.SelectedIndex >= 0
+            ? _audioDevices[_audioDeviceComboBox.SelectedIndex].Id
+            : "";
 
         if (string.IsNullOrWhiteSpace(webhookUrl))
         {
@@ -237,7 +313,7 @@ public class SettingsForm : Form
 
         try
         {
-            _saveSettings(webhookUrl, webhookId, targetMediaPlayer);
+            _saveSettings(webhookUrl, webhookId, targetMediaPlayer, audioDeviceId);
 
             // Handle Windows startup setting
             try
