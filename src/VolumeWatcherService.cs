@@ -44,7 +44,7 @@ public class VolumeWatcherService : BackgroundService
             try
             {
                 var device = getDevice(configuredDeviceId);
-                logInfo("configured", device.FriendlyName);
+                logInfo("configured", device?.FriendlyName);
                 return device;
             }
             catch (System.Runtime.InteropServices.COMException ex)
@@ -56,7 +56,7 @@ public class VolumeWatcherService : BackgroundService
         else
         {
             var device = getDefaultDevice();
-            logInfo("default", device.FriendlyName);
+            logInfo("default", device?.FriendlyName);
             return device;
         }
     }
