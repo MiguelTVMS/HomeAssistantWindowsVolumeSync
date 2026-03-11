@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Moq;
-using NAudio.CoreAudioApi;
 using Xunit;
 
 namespace HomeAssistantWindowsVolumeSync.Tests;
@@ -546,52 +545,57 @@ public class VolumeWatcherServiceTests
 
     #endregion
 
-    #region ResolveMonitoredDevice tests (pure logic, no COM/Windows required)
+    #region ResolveMonitoredDevice tests — string stub, no COM/Windows required
+
+    // ResolveMonitoredDevice<TDevice> is generic; we use string as the stub device type
+    // so these tests are fully cross-platform and require no Windows/COM dependencies.
+    // [WindowsFact] is NOT used here intentionally — NAudio types are not referenced.
+
+    private static string? StubResolveDevice(
+        string? configuredDeviceId,
+        Func<string, string?> getDevice,
+        Func<string?> getDefaultDevice,
+        Action<System.Runtime.InteropServices.COMException, string> logWarning,
+        Action<string, string?> logInfo)
+        => VolumeWatcherService.ResolveMonitoredDevice(
+            configuredDeviceId,
+            getDevice,
+            getDefaultDevice,
+            d => d,   // name == the device string itself
+            logWarning,
+            logInfo);
 
     [Fact]
     public void ResolveMonitoredDevice_UsesGetDevice_WhenAudioDeviceIdIsConfigured()
     {
-        // Arrange
         var configuredId = "{0.0.0.00000000}.{test-device-id}";
         var getDeviceCalled = false;
         var getDefaultCalled = false;
-        // Simulate a device that returns successfully (non-null returned)
-        // We cannot construct MMDevice without COM, so we verify routing via call tracking
-        // and throw from getDefaultDevice so the test fails if fallback is accidentally triggered
-        MMDevice? stubDevice = null;
 
-        // Act — getDevice returns null, which triggers fallback; verify getDevice IS called first
-        VolumeWatcherService.ResolveMonitoredDevice(
+        StubResolveDevice(
             configuredId,
-            id => { getDeviceCalled = true; return stubDevice; },
-            () => { getDefaultCalled = true; return stubDevice; },
+            id => { getDeviceCalled = true; return "speakers"; },
+            () => { getDefaultCalled = true; return "default-device"; },
             (ex, id) => { },
             (kind, name) => { });
 
-        // Assert — getDevice is called when a configuredDeviceId is set
         Assert.True(getDeviceCalled, "GetDevice should be called when AudioDeviceId is configured");
-        // Note: getDefault is also called here because the stub returns null (no real device in tests);
-        // in production with a real device, getDefault would NOT be called when getDevice succeeds.
-        Assert.True(getDefaultCalled, "GetDefaultAudioEndpoint is called as fallback when getDevice returns null (test-only limitation)");
+        Assert.False(getDefaultCalled, "GetDefaultAudioEndpoint should NOT be called when getDevice succeeds");
     }
 
     [Fact]
     public void ResolveMonitoredDevice_UsesGetDefaultDevice_WhenAudioDeviceIdIsEmpty()
     {
-        // Arrange
         var getDeviceCalled = false;
         var getDefaultCalled = false;
-        MMDevice? stubDevice = null;
 
-        // Act
-        VolumeWatcherService.ResolveMonitoredDevice(
+        StubResolveDevice(
             "",
-            id => { getDeviceCalled = true; return stubDevice; },
-            () => { getDefaultCalled = true; return stubDevice; },
+            id => { getDeviceCalled = true; return "speakers"; },
+            () => { getDefaultCalled = true; return "default-device"; },
             (ex, id) => { },
             (kind, name) => { });
 
-        // Assert
         Assert.False(getDeviceCalled, "GetDevice should NOT be called when AudioDeviceId is empty");
         Assert.True(getDefaultCalled, "GetDefaultAudioEndpoint should be called when AudioDeviceId is empty");
     }
@@ -599,20 +603,16 @@ public class VolumeWatcherServiceTests
     [Fact]
     public void ResolveMonitoredDevice_UsesGetDefaultDevice_WhenAudioDeviceIdIsNull()
     {
-        // Arrange
         var getDeviceCalled = false;
         var getDefaultCalled = false;
-        MMDevice? stubDevice = null;
 
-        // Act
-        VolumeWatcherService.ResolveMonitoredDevice(
+        StubResolveDevice(
             null,
-            id => { getDeviceCalled = true; return stubDevice; },
-            () => { getDefaultCalled = true; return stubDevice; },
+            id => { getDeviceCalled = true; return "speakers"; },
+            () => { getDefaultCalled = true; return "default-device"; },
             (ex, id) => { },
             (kind, name) => { });
 
-        // Assert
         Assert.False(getDeviceCalled, "GetDevice should NOT be called when AudioDeviceId is null");
         Assert.True(getDefaultCalled, "GetDefaultAudioEndpoint should be called when AudioDeviceId is null");
     }
@@ -620,70 +620,94 @@ public class VolumeWatcherServiceTests
     [Fact]
     public void ResolveMonitoredDevice_FallsBackToDefault_WhenConfiguredDeviceNotFound()
     {
-        // Arrange
         var configuredId = "{0.0.0.00000000}.{missing-device-id}";
         var comException = new System.Runtime.InteropServices.COMException("device not found", unchecked((int)0x80070490));
         var warningLogged = false;
         var getDefaultCalled = false;
-        MMDevice? stubDevice = null;
 
-        // Act
-        VolumeWatcherService.ResolveMonitoredDevice(
+        StubResolveDevice(
             configuredId,
             id => throw comException,
-            () => { getDefaultCalled = true; return stubDevice; },
+            () => { getDefaultCalled = true; return "default-device"; },
             (ex, id) => { warningLogged = true; },
             (kind, name) => { });
 
-        // Assert
         Assert.True(warningLogged, "A warning should be logged when the configured device is not found");
-        Assert.True(getDefaultCalled, "GetDefaultAudioEndpoint should be called as fallback when configured device is not found");
+        Assert.True(getDefaultCalled, "GetDefaultAudioEndpoint should be called as fallback");
     }
 
     [Fact]
     public void ResolveMonitoredDevice_LogsConfiguredKind_WhenSpecificDeviceSelected()
     {
-        // Note: logInfo("configured", ...) is only called when getDevice returns a non-null device.
-        // Since we cannot construct MMDevice in tests (COM dependency), we verify that
-        // logInfo("default", ...) is called for the Windows default path instead.
-        // The "configured" log path is validated by integration tests on Windows CI
-        // (StartAsync_ShouldNotThrow covers the full flow on a real machine).
         var configuredId = "{0.0.0.00000000}.{test-device-id}";
         var loggedKind = "";
-        MMDevice? stubDevice = null;
 
-        // Act — getDevice returns null, falls back to default; logInfo("default", ...) fires
-        VolumeWatcherService.ResolveMonitoredDevice(
+        StubResolveDevice(
             configuredId,
-            id => stubDevice,
-            () => stubDevice,
+            id => "Headphones (USB Audio)",
+            () => "Speakers (Realtek)",
             (ex, id) => { },
             (kind, name) => { loggedKind = kind; });
 
-        // When both delegates return null, neither logInfo call fires — loggedKind stays empty
-        Assert.Equal("", loggedKind);
+        Assert.Equal("configured", loggedKind);
     }
 
     [Fact]
     public void ResolveMonitoredDevice_LogsDefaultKind_WhenNoDeviceConfigured()
     {
-        // Note: logInfo("default", ...) is only called when getDefaultDevice returns non-null.
-        // Since we cannot construct a real MMDevice in tests (COM dependency),
-        // both delegates return null and logInfo is not called — loggedKind stays empty.
-        // The full log path is covered by integration tests on Windows CI.
         var loggedKind = "";
-        MMDevice? stubDevice = null;
 
-        // Act
-        VolumeWatcherService.ResolveMonitoredDevice(
+        StubResolveDevice(
             "",
-            id => stubDevice,
-            () => stubDevice,
+            id => "Headphones (USB Audio)",
+            () => "Speakers (Realtek)",
             (ex, id) => { },
             (kind, name) => { loggedKind = kind; });
 
-        // When getDefaultDevice returns null, logInfo is not called — loggedKind stays empty
-        Assert.Equal("", loggedKind);
+        Assert.Equal("default", loggedKind);
+    }
+
+    [Fact]
+    public void ResolveMonitoredDevice_ReturnsConfiguredDevice_WhenFound()
+    {
+        var configuredId = "{0.0.0.00000000}.{test-device-id}";
+
+        var result = StubResolveDevice(
+            configuredId,
+            id => "Headphones (USB Audio)",
+            () => "Speakers (Realtek)",
+            (ex, id) => { },
+            (kind, name) => { });
+
+        Assert.Equal("Headphones (USB Audio)", result);
+    }
+
+    [Fact]
+    public void ResolveMonitoredDevice_ReturnsDefaultDevice_WhenNoDeviceConfigured()
+    {
+        var result = StubResolveDevice(
+            "",
+            id => "Headphones (USB Audio)",
+            () => "Speakers (Realtek)",
+            (ex, id) => { },
+            (kind, name) => { });
+
+        Assert.Equal("Speakers (Realtek)", result);
+    }
+
+    [Fact]
+    public void ResolveMonitoredDevice_ReturnsDefaultDevice_WhenConfiguredDeviceNotFound()
+    {
+        var comException = new System.Runtime.InteropServices.COMException("not found", unchecked((int)0x80070490));
+
+        var result = StubResolveDevice(
+            "{0.0.0.00000000}.{missing}",
+            id => throw comException,
+            () => "Speakers (Realtek)",
+            (ex, id) => { },
+            (kind, name) => { });
+
+        Assert.Equal("Speakers (Realtek)", result);
     }
 
     #endregion

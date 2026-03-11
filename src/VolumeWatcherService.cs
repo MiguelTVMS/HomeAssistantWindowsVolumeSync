@@ -26,20 +26,24 @@ public class VolumeWatcherService : BackgroundService
     /// Resolves which audio device to monitor based on the configured device ID.
     /// Extracted for testability — callers inject the enumerator functions.
     /// </summary>
+    /// <typeparam name="TDevice">Device type (e.g. <see cref="MMDevice"/> in production; any stub in tests).</typeparam>
     /// <param name="configuredDeviceId">Value of <see cref="IAppConfiguration.AudioDeviceId"/>.</param>
-    /// <param name="getDevice">Delegate wrapping <c>MMDeviceEnumerator.GetDevice(id)</c>.</param>
-    /// <param name="getDefaultDevice">Delegate wrapping <c>MMDeviceEnumerator.GetDefaultAudioEndpoint</c>.</param>
-    /// <param name="logWarning">Delegate for warning logging on fallback.</param>
-    /// <param name="logInfo">Delegate for info logging on successful resolution.</param>
-    /// <returns>The resolved <see cref="MMDevice"/>, or <c>null</c> if no device is available.</returns>
-    internal static MMDevice? ResolveMonitoredDevice(
+    /// <param name="getDevice">Resolves a device by ID; throws <see cref="System.Runtime.InteropServices.COMException"/> if not found.</param>
+    /// <param name="getDefaultDevice">Resolves the Windows default audio output device.</param>
+    /// <param name="getName">Returns a human-readable name from a device instance (e.g. <c>d =&gt; d.FriendlyName</c>).</param>
+    /// <param name="logWarning">Called when the configured device is not found and fallback occurs.</param>
+    /// <param name="logInfo">Called on successful resolution: first arg is "configured" or "default".</param>
+    /// <returns>The resolved device, or <c>null</c> if no device is available.</returns>
+    internal static TDevice? ResolveMonitoredDevice<TDevice>(
         string? configuredDeviceId,
-        Func<string, MMDevice?> getDevice,
-        Func<MMDevice?> getDefaultDevice,
+        Func<string, TDevice?> getDevice,
+        Func<TDevice?> getDefaultDevice,
+        Func<TDevice, string?> getName,
         Action<System.Runtime.InteropServices.COMException, string> logWarning,
         Action<string, string?> logInfo)
+        where TDevice : class
     {
-        MMDevice? device = null;
+        TDevice? device = null;
 
         if (!string.IsNullOrEmpty(configuredDeviceId))
         {
@@ -49,7 +53,7 @@ public class VolumeWatcherService : BackgroundService
 
                 if (device is not null)
                 {
-                    logInfo("configured", device.FriendlyName);
+                    logInfo("configured", getName(device));
                     return device;
                 }
             }
@@ -63,7 +67,7 @@ public class VolumeWatcherService : BackgroundService
 
         if (device is not null)
         {
-            logInfo("default", device.FriendlyName);
+            logInfo("default", getName(device));
         }
 
         return device;
@@ -129,6 +133,7 @@ public class VolumeWatcherService : BackgroundService
                     configuredDeviceId,
                     id => (MMDevice?)_deviceEnumerator.GetDevice(id),
                     () => (MMDevice?)_deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia),
+                    d => d.FriendlyName,
                     (ex, id) => _logger.LogWarning(ex,
                         "Configured audio device {DeviceId} not found. Falling back to Windows default output.", id),
                     (kind, name) =>
