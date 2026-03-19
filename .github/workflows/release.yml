@@ -58,7 +58,10 @@ jobs:
       - name: Remove PDB files from publish output
         shell: pwsh
         run: |
-          Get-ChildItem -Path publish -Recurse -Filter "*.pdb" | Remove-Item -Force
+          $ErrorActionPreference = 'Stop'
+          Get-ChildItem -Path publish -Recurse -Filter "*.pdb" | Remove-Item -Force -ErrorAction Stop
+          $remaining = Get-ChildItem -Path publish -Recurse -Filter "*.pdb"
+          if ($remaining) { throw "PDB files still present after removal: $($remaining.FullName -join ', ')" }
 
       - name: Build Inno Setup installer
         shell: pwsh
