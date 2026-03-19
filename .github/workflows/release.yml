@@ -55,6 +55,14 @@ jobs:
       - name: Publish framework-dependent
         run: dotnet publish src/HomeAssistantWindowsVolumeSync.csproj -c Release -r win-x64 --self-contained false -o publish/framework-dependent
 
+      - name: Remove PDB files from publish output
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Get-ChildItem -Path publish -Recurse -Filter "*.pdb" | Remove-Item -Force -ErrorAction Stop
+          $remaining = Get-ChildItem -Path publish -Recurse -Filter "*.pdb"
+          if ($remaining) { throw "PDB files still present after removal: $($remaining.FullName -join ', ')" }
+
       - name: Build Inno Setup installer
         shell: pwsh
         run: |

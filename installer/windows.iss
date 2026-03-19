@@ -45,7 +45,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
 ; All published application files (self-contained build)
-Source: "..\publish\self-contained\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\publish\self-contained\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pdb"
 
 [Icons]
 ; Start Menu shortcut
