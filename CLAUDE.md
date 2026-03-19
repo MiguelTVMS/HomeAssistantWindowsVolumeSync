@@ -256,8 +256,9 @@ Tests that require Windows APIs are tagged with `[WindowsFact]` / `[WindowsTheor
 
 | Attribute | Use instead of | When |
 |-----------|---------------|------|
-| `[WindowsFact]` | `[Fact]` | Test uses Registry, WinForms, NAudio, or any Windows-only API |
+| `[WindowsFact]` | `[Fact]` | Test uses Registry, WinForms, NAudio COM types (`MMDevice`, `MMDeviceEnumerator`), or any Windows-only API |
 | `[WindowsTheory]` | `[Theory]` | Same, but for data-driven tests |
+| `[Fact]` | `[WindowsFact]` | Test exercises **pure logic only** — no Windows/COM/NAudio type references (e.g. delegate-injection tests using generic or string stubs) |
 
 ### Filter commands (playlists)
 
@@ -279,7 +280,54 @@ dotnet test HomeAssistantWindowsVolumeSync.sln --filter "Category!=Windows"
 | `WindowsStartupManagerTests.cs` | Uses `Registry.CurrentUser` |
 | `IWindowsStartupManagerTests.cs` | Calls `WindowsStartupManager` (Registry) |
 | `SystemTrayServiceTests.cs` | Requires WinForms / `NotifyIcon` |
-| `VolumeWatcherServiceTests.cs` | Requires NAudio / Core Audio API |
+| `VolumeWatcherServiceTests.cs` | Mixed: most tests use NAudio (`[WindowsFact]`); `ResolveMonitoredDevice` tests use string stubs and are `[Fact]` |
+
+### NAudio COM types are sealed — use delegate injection for testability
+
+`MMDevice` and `MMDeviceEnumerator` are **sealed COM classes** and cannot be constructed or mocked without a real Windows audio stack. Any method that calls these types directly is untestable without the COM runtime.
+
+**Pattern: delegate injection with a generic type parameter**
+
+When a method needs to be unit-tested without COM, extract the logic into a `static` (or standalone) method that accepts delegates returning a generic `TDevice` instead of `MMDevice`, plus a `getName` delegate to get the device name:
+
+```csharp
+internal static TDevice? ResolveSomething<TDevice>(
+    Func<string, TDevice?> getDevice,
+    Func<TDevice?> getDefault,
+    Func<TDevice, string?> getName,
+    Action<COMException, string> logWarning,
+    Action<string, string?> logInfo)
+    where TDevice : class
+{
+    // pure logic — no COM references
+}
+```
+
+The production call site passes real NAudio delegates:
+
+```csharp
+ResolveMonitoredDevice(
+    configuredDeviceId,
+    id => (MMDevice?)_enumerator.GetDevice(id),
+    () => (MMDevice?)_enumerator.GetDefaultAudioEndpoint(...),
+    d => d.FriendlyName,
+    logWarning,
+    logInfo);
+```
+
+Tests use `string` (or any non-COM stub):
+
+```csharp
+VolumeWatcherService.ResolveMonitoredDevice(
+    configuredId,
+    id => "Headphones",
+    () => "Speakers",
+    d => d,           // name == the stub string itself
+    (ex, id) => { },
+    (kind, name) => { loggedKind = kind; });
+```
+
+**Never** return `null!` or use `stubDevice!` null-forgiveness in tests as a workaround for sealed COM types — it masks the real problem. Extract logic with delegate injection instead.
 
 ## Platform Constraints
 
@@ -343,7 +391,31 @@ The application sends JSON payloads to Home Assistant:
 3. Volume changes trigger webhook calls
 4. Application gracefully handles cancellation and disposes resources
 
-## When Making Changes
+## Pull Request Process
+
+### Copilot Review — Mandatory Before Merging
+
+**Never merge a PR without waiting for GitHub Copilot to post its review.**
+
+Copilot reviews are triggered automatically when CI completes. After CI goes green:
+
+1. Check `GET /repos/{owner}/{repo}/pulls/{n}/reviews` — wait until a new review appears with a `submitted_at` timestamp after your last push
+2. Check `GET /repos/{owner}/{repo}/pulls/{n}/comments` — read all inline comments from that review
+3. If there are inline comments, act on all of them in a follow-up commit
+4. Only merge when Copilot has reviewed the latest commit **and** left no unresolved inline comments
+
+### Commit Standards
+
+- Write descriptive commit messages (`fix:`, `feat:`, `chore:`, `docs:` prefixes)
+- Each commit should be a logical unit; squash noise before opening a PR
+- Pre-commit hook validates symlinks — fix failures before pushing
+
+### Before Opening a PR
+
+- `npm run check` / `dotnet build` — no errors or warnings
+- All tests pass
+- Symlinks validated (`bash scripts/validate-symlinks.sh`)
+- PR description explains what changed and why
 
 1. **Write tests first** (when adding new functionality)
 2. **Implement the feature** following coding conventions
